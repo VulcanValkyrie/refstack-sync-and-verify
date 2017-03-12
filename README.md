@@ -13,3 +13,8 @@ the basics set up.
     current state: parses and loads spreadsheet into db with no duplicate
     entries.
   - Cleaned up pep-8 formatting, minor item ID matching debug
+* 3/11/17
+  - refactor for more sensible code flow, implemented functionality
+    to update an existing database.
+    * still a bit of debugging to do on this; not yet in fully working
+      state
