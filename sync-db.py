@@ -10,7 +10,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 def get_csv():
     scope = ['https://spreadsheets.google.com/feeds']
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
-        'gcreds.json', scope)
+        '<credentials json file>', scope)
     doc_id = "<document id>"
     client = gspread.authorize(credentials)
     spreadsheet = client.open_by_key(doc_id)
@@ -25,9 +25,9 @@ def get_csv():
 def empty_chk(cursor):
     results = cursor.execute("""SELECT * from product limit 1""")
     if not results:
-        return 1
+        return True
     else:
-        return 0
+        return False
 
 
 def split_entry(guideline, refstack_link, ticket_link, lic_date):
@@ -66,7 +66,7 @@ def get_entry(line):
 
 
 def pop_db(filename):
-    if prod_name not in company_name:
+    if not prod_name in company_name:
         return None
     if(len(guideline) > 9):
         print ("this line needs to be split")
@@ -160,7 +160,7 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
         product_id = product_id[0]
     cursor.execute("SELECT id from company WHERE name='%s'" % (company_name))
     company_id = cursor.fetchone()
-    if company_id is not None:
+    if not "None" in company_id:
         company_id = company_id[0]
     # guideline table updates
     cursor.execute(
@@ -168,7 +168,7 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
-        if guideline not in to_chk:
+        if not guideline in to_chk:
             cursor.execute("UPDATE result SET guideline = '%s' WHERE product_id_ = '%s' AND refstack = '%s'" % (
                 guideline, product_id, refstack_link))
     cursor.execute("SELECT refstack FROM result WHERE guideline = '%s' AND _product_id_ = '%s'" % (
@@ -176,7 +176,7 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
-        if refstack_link not in to_chk:
+        if not refstack_link in to_chk:
             cursor.execute("UPDATE result SET refstack = '%s' WHERE product_id_ = '%s' AND guideline = '%s'" % (
                 refstack_link, product_id, guideline))
     # now we update our contact table
@@ -185,7 +185,7 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
-        if contact not in to_chk:
+        if not contact in to_chk:
             cursor.execute("UPDATE contact SET email = '%s' WHERE company_id = '%s'" % (
                 contact, company_id))
     # now update the product table
@@ -194,7 +194,7 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
-        if reported_rel not in to_chk:
+        if not reported_rel in to_chk:
             cursor.execute("UPDATE product SET _release ='%s' WHERE company_id = '%s' and name = '%s'" % (
                 reported_rel, company_id, prod_name))
     cursor.execute("SELECT federated FROM product WHERE company_id ='%s' AND name = '%s'" % (
@@ -215,7 +215,7 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
-        if ticket_link not in to_chk:
+        if not ticket_link in to_chk:
             cursor.execute("UPDATE ticket SET tik_link = '%s' WHERE product_id = '%s'" % (
                 ticket_link, product_id))
     # get a result link
@@ -230,7 +230,7 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
-        if to_chk and lic_link not in to_chk:
+        if to_chk and not lic_link in to_chk:
             cursor.execute("UPDATE license SET link = '%s' WHERE product_id = '%s'" % (
                 lic_link, product_id))
     cursor.execute(
@@ -238,31 +238,45 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
-        if lic_date not in to_chk:
+        if not lic_date in to_chk:
             cursor.execute("UPDATE license SET link = '%s' WHERE product_id = '%s'" % (
                 lic_date, product_id))
     db.commit()
 
 
+def new_chk(company_name, prod_name, cursor):
+    # this checks to see if the entry already exists. If it does not, the
+    # function returns a status of true, as in "entry is new"
+    cursor.execute(
+        "SELECT COUNT(*) FROM company WHERE name = '%s'" % (company_name))
+    company = cursor.fetchone()[0]
+    cursor.execute(
+        "SELECT COUNT(*) FROM product WHERE name = '%s'" % (prod_name))
+    product = cursor.fetchone()[0]
+    if company == 1 and product == 1:
+        return True
+    else:
+        return False
+
+
 filename = get_csv()
-db = pymysql.connect("<MySQL db server>", "<user>", "<password>", "<database>")
+db = pymysql.connect("<MySQL db server>", "<user>", "<password>", "MySQL db")
 cursor = db.cursor()
-status = empty_chk(cursor)
+empty_db = empty_chk(cursor)
 with open(filename) as r:
     next(r)
     for line in r:
         company_name, prod_name, guideline, reported_rel, passed_rel,\
             federated, refstack_link, ticket_link, lic_date, upd_status,\
             contact, lic_link = get_entry(line)
-        if(status == 1):
-            print("pushing entry")
+        new_entry = new_chk(company_name, prod_name, cursor)
+        # if the db is empty, of if this entry does not exist, push entry
+        if empty_db or new_entry:
             push_entry(company_name, prod_name, guideline, reported_rel,
                        passed_rel, federated, refstack_link, ticket_link,
                        lic_date, upd_status, contact, lic_link, cursor, db)
         else:
+            # now let's update existing entries
             update_entry(company_name, prod_name, guideline, reported_rel,
                          passed_rel, federated, refstack_link, ticket_link,
                          lic_date, contact, lic_link, cursor, db)
-            # update_entry(company_name, prod_name, guideline, reported_rel,
-            #             passed_rel, federated, refstack_link, ticket_link,
-            #             lic_date, upd_status, contact, lic_link, cursor)

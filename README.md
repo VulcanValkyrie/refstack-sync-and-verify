@@ -9,7 +9,7 @@ the basics set up.
 note: for the time being, I am disregarding the line length requirement of
 pep-8. I will remedy that soon, but for the time being, I am leaving it as is
 
-//////////////////////////Commit History & Progress///////////////////////////
+////////////////////////////////////////Commit History & Progress/////////////////////////////////////////////
 
 * 3/10/17: 
   - Initial commit. Much to clean up, much to streamline. More soon
@@ -23,14 +23,16 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
       state
 * 3/12/17
   - accounted for the databases' returning None in place of a tuple.
+* 3/13/17
+  - implemented check that allows us to push to the database entries that
+    did not already exist.
 
-
-//////////////////////Current Status & Functionality///////////////////////////
+////////////////////////////////////Current Status & Functionality//////////////////////////////////////////////
 
 * populates db if db does not exist
 * updates db based on existing records that have been changed
+* adds new records for product pairs that have been recently added to the spreadsheet
 
-////////////////////////////Coming Soon//////////////////////////////////////
+////////////////////////////////////////////////Coming Soon///////////////////////////////////////////////////////
 
 * link checking
-* adding new single/multiple entries into an existing database
