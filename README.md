@@ -19,20 +19,31 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
 * 3/11/17
   - refactor for more sensible code flow, implemented functionality
     to update an existing database.
-    * still a bit of debugging to do on this; not yet in fully working
-      state
 * 3/12/17
   - accounted for the databases' returning None in place of a tuple.
 * 3/13/17
   - implemented check that allows us to push to the database entries that
     did not already exist.
+* 3/4/17
+  - implemented a check to make sure a result's link exists/is
+    functional
+  - implemented a "flag result" function to flag results with broken links for
+    review
+  - began refactor of existing code. Separated out the functionality of querying
+    for company and product id, as well as converting federated and license_update
+    fields from the human-readable string format to the tinyint format used by
+    mysql to represent booleans
 
 ////////////////////////////////////Current Status & Functionality//////////////////////////////////////////////
 
 * populates db if db does not exist
 * updates db based on existing records that have been changed
 * adds new records for product pairs that have been recently added to the spreadsheet
+* checks links and flags test results whose links are broken/nonexistent
 
 ////////////////////////////////////////////////Coming Soon///////////////////////////////////////////////////////
 
-* link checking
+*  planning to refactor for increased simplicity/less code replication
+* "pull entry" function that gathers entries from the contents of the DB
+* "write to csv" functionality to populate a csv full of our updated results
+* "push csv" functionality to return updated data to source, thus completing the sync
