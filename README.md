@@ -24,7 +24,7 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
 * 3/13/17
   - implemented check that allows us to push to the database entries that
     did not already exist.
-* 3/4/17
+* 3/14/17
   - implemented a check to make sure a result's link exists/is
     functional
   - implemented a "flag result" function to flag results with broken links for
@@ -33,13 +33,21 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
     for company and product id, as well as converting federated and license_update
     fields from the human-readable string format to the tinyint format used by
     mysql to represent booleans
+* 3/15/17
+  - added a script which reformats a test results spreadsheet for greater
+    readability, as well as checking links to make sure they are all valid
 
 ////////////////////////////////////Current Status & Functionality//////////////////////////////////////////////
 
-* populates db if db does not exist
-* updates db based on existing records that have been changed
-* adds new records for product pairs that have been recently added to the spreadsheet
-* checks links and flags test results whose links are broken/nonexistent
+* sync-db.py
+  - populates db if db does not exist
+  - updates db based on existing records that have been changed
+  - adds new records for product pairs that have been recently added to the spreadsheet
+  - checks links and flags test results whose links are broken/nonexistent
+* check-spreadsheet.py
+  - checks links
+  - (attempts to) reformat lines with multiple entries for the sake of easier updatability
+    * this is still quirky
 
 ////////////////////////////////////////////////Coming Soon///////////////////////////////////////////////////////
 
