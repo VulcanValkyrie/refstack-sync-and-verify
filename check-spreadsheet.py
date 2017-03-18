@@ -9,58 +9,54 @@ import re
 reload(sys)
 sys.setdefaultencoding('utf8')
 
-
-def split_entry(guideline, refstack_link, ticket_link, lic_date):
-    guide2 = guideline.replace("\n", " ").replace("\r", " ").split()[1]
-    guideline = guideline.replace("\n", " ").replace("\r", " ").split()[0]
-    if len(refstack_link.split()) >=2:
-	rs_link2 = refstack_link.replace("\n", " ").replace("\r", " ").split()[1]
-    else:
-        rs_link2 = refstack_link
-    refstack_link = refstack_link.replace("\n", " ").replace("\r", " ").split()[0]
-    if len(ticket_link.split()) >= 2:
-        tiklink2 = ticket_link.replace("\n", " ").replace("\r", " ").split()[1]
-    else:
-        tiklink2 = ticket_link
-    ticket_link = ticket_link.replace("\n", " ").replace("\r", " ").split()[0]
-    if len(lic_date.split()) >= 2:    
-	date2 = lic_date.replace("\n", " ").replace("\r", " ").split()[1]
-    else:
-	date2 = lic_date
-    lic_date = lic_date.replace("\n", " ").replace("\r", " ").split()[0]
-    return guideline, guide2, refstack_link, rs_link2, ticket_link, tiklink2,\
-        lic_date, date2
+def split_entry(guideline, component, passed_rel, reported_rel):
+    guidelines =[]; components = []; passed_rels = []; reported_rels = []
+    guidelines = guideline.replace("\n", " ").replace("\r", " ").split(" ")
+    components = component.replace("\n", " ").replace("\r", " ").split(" ")
+    passed_rels = passed_rel.replace("\n", " ").replace("\r", " ").split(" ")
+    reported_rels = reported_rel.replace("\n", " ").replace("\r", " ").split(" ")
+    #print(guidelines);
+    return guidelines, components, passed_rels, reported_rels
 
 
-def link_chk(link, linect):  # returns true if valid page and false if not
-    if(linect == 1):
-        return True  # not an error, header row
-    if link == '' or not link:  # ignores if empty field
+def links_chk(links, linect):  # returns true if valid page and false if not
+     if links is None or not links:
         return False
-    try:
-        response = urllib2.urlopen(link)
-        if response.geturl() != link:  # returns false if redirected
-            return False
-        else:
-            return True
-    except urllib2.HTTPError as err:  # meant to catch 404s, etc.
-        return False
-
+     if linect == 1: #handles the header
+        return True
+     status = False
+     for x in links:
+        try:
+            if " " in x:
+                status = False
+            response = urllib2.urlopen(x)
+            if response.geturl() == x:  # returns true if the link works
+                status = True
+        except urllib2.HTTPError as err:  # meant to catch 404s, etc.
+           status = False
+     return status
 
 def fix_link(link):
+    links = []; newurls = []
     if " " in link or not link or link == '':
         return None
-    try:
-        base_domain = link.split('/')[2]
-        test_id = link.split('/')[-1]
-        newurl = "https://" + str(base_domain) + "/api/v1/results/" + str(test_id)
-        return newurl
-    except Exception:
-        return None
+    links = link.replace("\n", " ").replace("\r", " ").split(" ")
+    for x in links:
+        try:
+           base_domain = x.split('/')[2]
+           test_id = x.split('/')[-1]
+           newurl = "https://" + str(base_domain) + "/api/v1/results/" + str(test_id)
+           newurls.append(newurl)
+        except Exception:
+            return None
+    return newurls
 
 def process_spreadsheet(data):
     linect = 0  # this is the counter which keeps track of the line
+    filename = "updated.csv"
+    outfile = open(filename,'w')
     for x in data:
+        linect = linect + 1
     	#print(data)
 	if x[0] and x[1]:
         	linect = linect + 1
@@ -83,53 +79,38 @@ def process_spreadsheet(data):
         	lic_link = x[16]
         	active = x[17]
                 public = x[18]
-        	if(len(guideline) > 9):  # if there is more than one link:
         	# split the relevant fields
-        	    #print ("the line associated with "+ company_name +"\'sproduct "+ prod_name + " needs to be split")
-                    #guidelines = []; ref_link = []
-                    #tik_link = [];   license_date = [];
-                    guideline, guide2, refstack_link, rs_link2, ticket_link,\
-        	    tiklink2, lic_date, date2 = split_entry(guideline,
-        	                                            refstack_link,
-        	                                            ticket_link,
-        	                                            lic_date)
-                    #guidelines, ref_link, tik_link, license_date = split_entry(guideline,
-                    #                                                           refstack_link,
-                    #                                                           ticket_link,
-                    #                                                          lic_date)
-        	    api_link2 = fix_link(rs_link2)
-        	    ref_status = link_chk(api_link, linect)
-        	    # now we add the new fields to the spreadsheet as a new row.
-        	    spreadsheet.append_row([company_name, prod_name, _type, region,
-                    	                    guideline, component, reported_rel,
-                    		            passed_rel, federated, rs_link2,
-                         	                tiklink2, date2, upd_status, "this is\
-                        	                the new split row", contact, lic_link])
+                guidelines =[]; components = []; api_links = []
+                passed_rels = [];   reported_rels = [] ;
+                guidelines, components, passed_rels, reported_rels, = split_entry(guideline,
+                                                                                  component,
+                                                                                  passed_rel,
+                                                                                  reported_rel)
+		for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
+		    outfile.write(company_name + "," + prod_name + "," + _type+ "," +
+                                  region + "," + w + "," +  x + ","+ y + "," + z + ","+
+                                  federated + "," + refstack_link + "," + ticket_link +
+                                  "," + lic_date + "," + upd_status + "," + notes + ","
+                                  + lic_link + "," + active + "," +  public )
+		    # check all results asociated with a product to make
+                    # sure at least one of the links is valid
+		    api_links = fix_link(refstack_link)
+                    ref_status = links_chk(api_links, linect)
+                    #now we add the new fields to the spreadsheet as a new row.
             	    if not ref_status:
-                	print("the test result associated with the product " +
-                	      prod_name + " and the guideline " + guideline +
-                	      " is broken, or does not exist. please review")
+                        print("the test result associated with the product " +
+                              prod_name + " and the guideline " + guideline +
+                              " is broken, or does not exist. please review")
+    outfile.close()
+    return filename
 
-            	#now update the existing row to the new short form
-            	spreadsheet.update_acell("E" + str(linect), guideline)
-            	spreadsheet.update_acell("J" + str(linect), refstack_link)
-            	spreadsheet.update_acell("K" + str(linect), ticket_link)
-            	spreadsheet.update_acell("M" + str(linect), lic_date)
-            	spreadsheet.update_acell("P" + str(linect), "this is the row we split")
-                api_link = fix_link(refstack_link)
-                ref_status = link_chk(api_link, linect)
-	        if not ref_status:
-        	    print("the test result associated with the product " +
-                          prod_name + " and the guideline " + guideline +
-                          " is broken, or does not exist. please review")
-	
 
 print("UPDATE PROGRESS:")
 print("connecting to spreadsheet...")
 scope = ['https://spreadsheets.google.com/feeds']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
     'gcreds.json', scope)
-doc_id = "<google spreadsheet id>"
+doc_id = "<google spreadsheet document id>"
 client = gspread.authorize(credentials)
 spreadsheet = client.open_by_key(doc_id).worksheet('Sheet1')
 data = spreadsheet.get_all_values() 
@@ -139,5 +120,5 @@ print("resizing spreadsheet...")
 spreadsheet.resize(rows)
 #print("retrieviing spreadsheet...")
 #print("processing and updating spreadsheet...\n")
-process_spreadsheet(data)
+updated = process_spreadsheet(data)
 print("\n")
