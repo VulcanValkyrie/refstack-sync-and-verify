@@ -33,10 +33,16 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
     for company and product id, as well as converting federated and license_update
     fields from the human-readable string format to the tinyint format used by
     mysql to represent booleans
-* 3/15/17
+* 3/15/17-early 3/16/17
   - added a script which reformats a test results spreadsheet for greater
     readability, as well as checking links to make sure they are all valid
-
+* 3/17/17
+  - debugged linkchecking functionality, got the file to write to csv, tried to get
+    update file upload functionality working
+* 3/18/17
+  - tried to debug csv upload, then when it turned out that that gspread functionality
+    is either broken or deprecated, updated script to wipe the spreadsheet and readd
+    the newly updated entries as they are checked. this proved to be successful
 ////////////////////////////////////Current Status & Functionality//////////////////////////////////////////////
 
 * sync-db.py
@@ -47,11 +53,10 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
 * check-spreadsheet.py
   - checks links
   - (attempts to) reformat lines with multiple entries for the sake of easier updatability
-    * this is still quirky
+  - prints warnings that broken links need checking
+  - refreshes spreadsheet as it checks line
 
 ////////////////////////////////////////////////Coming Soon///////////////////////////////////////////////////////
 
 *  planning to refactor for increased simplicity/less code replication
 * "pull entry" function that gathers entries from the contents of the DB
-* "write to csv" functionality to populate a csv full of our updated results
-* "push csv" functionality to return updated data to source, thus completing the sync
