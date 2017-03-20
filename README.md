@@ -43,6 +43,10 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
   - tried to debug csv upload, then when it turned out that that gspread functionality
     is either broken or deprecated, updated script to wipe the spreadsheet and readd
     the newly updated entries as they are checked. this proved to be successful
+* 3/19/17
+  - updated script to toggle the update flag, as well as adding a note that tells the
+    reader to check the results link, given that it is not working
+
 ////////////////////////////////////Current Status & Functionality//////////////////////////////////////////////
 
 * sync-db.py
@@ -55,6 +59,8 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
   - (attempts to) reformat lines with multiple entries for the sake of easier updatability
   - prints warnings that broken links need checking
   - refreshes spreadsheet as it checks line
+  - toggles update flag, leaves a reminder to check the result link for entries where links
+    arre broken
 
 ////////////////////////////////////////////////Coming Soon///////////////////////////////////////////////////////
 

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import time
 import csv
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -15,13 +16,12 @@ def split_entry(guideline, component, passed_rel, reported_rel):
     components = component.replace("\n", " ").replace("\r", " ").split(" ")
     passed_rels = passed_rel.replace("\n", " ").replace("\r", " ").split(" ")
     reported_rels = reported_rel.replace("\n", " ").replace("\r", " ").split(" ")
-    #print(guidelines);
     return guidelines, components, passed_rels, reported_rels
 
 def links_chk(links, linect):  # returns true if valid page and false if not
      if links is None or not links:
         return False
-     if linect == 1: #handles the header
+     if linect == 0: #handles the header
         return True 
      status = False
      for x in links: 
@@ -39,12 +39,9 @@ def fix_link(link):
     links = []; newurls = []
     if " " in link or not link or link == '':
         return None
-    #if(len(link.replace("\n", " ").replace("\r", " ").split(" ")) >= 2):
     links = link.replace("\n", " ").replace("\r", " ").split(" ")
     for x in links:
         try: 
-           #print(x)
-           # print("editing: "+ x) 
            base_domain = x.split('/')[2]
            test_id = x.split('/')[-1]
            newurl = "https://" + str(base_domain) + "/api/v1/results/" + str(test_id)
@@ -55,13 +52,10 @@ def fix_link(link):
     return newurls
 
 def process_spreadsheet(data, spreadsheet):
-    linect = 0  # this is the counter which keeps track of the line
-    #filename = "updated.csv"
-    #outfile = open(filename,'w')
+    linect = 1  # this is the counter which keeps track of the line
     spreadsheet.clear()
     for x in data:
-        linect = linect + 1
-    	#print(data)
+        linect = linect + 1;
 	if x[0] and x[1]:
         	linect = linect + 1
         	company_name = x[0]; #print("NOW CHECKING: company name " + company_name)
@@ -85,6 +79,17 @@ def process_spreadsheet(data, spreadsheet):
                 public = x[18]
                 guidelines =[]; components = []; api_links = []
                 passed_rels = [];   reported_rels = [] ;
+                # check all results asociated with a product to make
+                # sure at least one of the links is valid
+                api_links = fix_link(refstack_link)
+                ref_status = links_chk(api_links, linect)
+                #now we add the new fields to the spreadsheet as a new row.
+                if not ref_status and linect != 1 and linect != 0:
+                    print("the test result associated with the product " +
+                          prod_name + " on line " +  str(linect) + " is broken,"+
+                          " or nonexistent. please check and update the link")
+	            notes = notes + "; This link is broken or nonexistent. Please update the refstack result links associated with this product."
+                    upd_status = "yes"
                 guidelines, components, passed_rels, reported_rels, = split_entry(guideline,
 		                                         	                  component,
                                                                                   passed_rel,
@@ -94,30 +99,22 @@ def process_spreadsheet(data, spreadsheet):
                                         federated, refstack_link, ticket_link, marketp_link,
                                         lic_date, upd_status, contact, notes, lic_link,
                                         active, public])  
-                    # check all results asociated with a product to make
-                    # sure at least one of the links is valid
-		    api_links = fix_link(refstack_link)
-        	    ref_status = links_chk(api_links, linect)
-        	    #now we add the new fields to the spreadsheet as a new row.
-            	    if not ref_status:
-                        print("the test result associated with the product " +
-                    	      prod_name + " and the guideline " + guideline +
-                       	      " is broken, or does not exist. please review")
 
 
 print("UPDATE PROGRESS:")
 print("connecting to spreadsheet...")
 scope = ['https://spreadsheets.google.com/feeds']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
-    '<google spreadsheet credential file>', scope)
-doc_id = "<google spreadsheet doc id>"
+    '<google credentials json file>', scope)
+doc_id = "<google spreadsheet Id>"
 client = gspread.authorize(credentials)
 doc  =  client.open_by_key(doc_id)
 spreadsheet = doc.worksheet('current')
 data = spreadsheet.get_all_values() 
 rows = len(data)
 print("resizing spreadsheet...")
+#print("yes, this does take forever...")
 spreadsheet.resize(1)
 print ("checking and updating spreadsheet")
-process_spreadsheet(data, spreadsheet)
+updated = process_spreadsheet(data, spreadsheet)
 print("\n")
