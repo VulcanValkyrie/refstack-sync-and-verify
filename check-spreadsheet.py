@@ -109,7 +109,7 @@ credentials = ServiceAccountCredentials.from_json_keyfile_name(
 doc_id = "<google spreadsheet Id>"
 client = gspread.authorize(credentials)
 doc  =  client.open_by_key(doc_id)
-spreadsheet = doc.worksheet('current')
+spreadsheet = doc.worksheet('<spreadsheet name>')
 data = spreadsheet.get_all_values() 
 rows = len(data)
 print("resizing spreadsheet...")
