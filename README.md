@@ -46,6 +46,11 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
 * 3/19/17
   - updated script to toggle the update flag, as well as adding a note that tells the
     reader to check the results link, given that it is not working
+* 3/20/17
+  - cleaned up check-spreadsheet script for push to refstack repo for further testing
+* 3/21/17
+  - started refactor of sync-db script for better handling of edge cases and greater
+    processing speed
 
 ////////////////////////////////////Current Status & Functionality//////////////////////////////////////////////
 
@@ -61,6 +66,7 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
   - refreshes spreadsheet as it checks line
   - toggles update flag, leaves a reminder to check the result link for entries where links
     arre broken
+  - pushed to refstack repo for more rigorous testing.
 
 ////////////////////////////////////////////////Coming Soon///////////////////////////////////////////////////////
 
