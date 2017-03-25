@@ -51,6 +51,9 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
 * 3/21/17
   - started refactor of sync-db script for better handling of edge cases and greater
     processing speed
+* 3/24/17
+  - removed header lines from input, debugged ticket data entry. still buggy. This is
+    still buggy; when I search for the appropriate id number, the search returns 0.
 
 ////////////////////////////////////Current Status & Functionality//////////////////////////////////////////////
 
@@ -65,8 +68,7 @@ pep-8. I will remedy that soon, but for the time being, I am leaving it as is
   - prints warnings that broken links need checking
   - refreshes spreadsheet as it checks line
   - toggles update flag, leaves a reminder to check the result link for entries where links
-    arre broken
-  - pushed to refstack repo for more rigorous testing.
+    are broken
 
 ////////////////////////////////////////////////Coming Soon///////////////////////////////////////////////////////
 
