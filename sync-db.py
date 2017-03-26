@@ -1,102 +1,34 @@
 #!/usr/bin/python35
-import csv
 import gspread
 import pymysql
 import subprocess
 import urllib2
-from oauth2client.service_account import ServiceAccountCredentials
 import sys
+from oauth2client.service_account import ServiceAccountCredentials
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
 
-def empty_chk(cursor):
+def emptyChk(cursor):
     results = cursor.execute("""SELECT * from product limit 1""")
     if not results:
         return True
     else:
         return False
 
-
-def split_entry(guideline, refstack_link, ticket_link, lic_date):
-    guide2 = guideline.split()[1]
-    guideline = guideline.split()[0]
-    rs_link2 = refstack_link.split()[1]
-    refstack_link = refstack_link.split()[0]
-    tiklink2 = ticket_link.split()[1]
-    ticket_link = ticket_link.split()[0]
-    date2 = lic_date.split()[1]
-    lic_date = lic_date.split()[0]
-    return guideline, guide2, refstack_link, rs_link2, ticket_link, tiklink2,\
-        lic_date, date2
-
-
-def get_entry(line):
-    company_name = line[0]
-    prod_name = line[1]
-    _type = line[2]
-    region = line[3]
-    guideline = line[4]
-    component = line[5]
-    reported_rel = line[6]
-    passed_rel = line[7]
-    federated = line[8]
-    refstack_link = line[9]
-    ticket_link = line[10]
-    marketp_link = line[11]
-    lic_date = line[12]
-    upd_status = line[13]
-    contact = line[14]
-    notes = line[15]
-    lic_link = line[16]
-    active = line[17]
-    public = line[18]
-    return company_name, prod_name, _type, region, guideline, component,\
-        reported_rel, passed_rel, federated, refstack_link, ticket_link,\
-        marketp_link, lic_date, upd_status, contact, lic_link, active, public
-
-
-def pop_db(filename):
-    if prod_name not in company_name:
-        return None
-    if(len(guideline) > 9):
-        print ("this line needs to be split")
-        guideline, guide2, refstack_link, rs_link2, ticket_link,\
-            tiklink2, lic_date, date2 = split_entry(
-                guideline, refstack_link, ticket_link, lic_date)
-        add_entry(company_name, prod_name, guide2, reported_rel,
-                  passed_rel, federated, rs_link2, tiklink2, date2,
-                  upd_status, contact, lic_link)
-        # push data to db
-    add_entry(company_name, prod_name, guideline, reported_rel,
-              passed_rel, federated, refstack_link, ticket_link,
-              lic_date, upd_status, contact, lic_link)
-
-
-def dup_chk(cursor, table, specifier):
-    if "company" in table:
-        cursor.execute(
-            "SELECT name, COUNT(*) FROM company WHERE name = '%s' GROUP BY name" % (specifier))
-    if "contact" in table:
-        cursor.execute(
-            "SELECT email, COUNT(*) FROM contact WHERE email = '%s' GROUP BY email" % (specifier))
-    if "product" in table:
-        cursor.execute(
-            "SELECT name, COUNT(*) FROM product WHERE name = '%s' GROUP BY name" % (specifier))
-    if "ticket" in table:
-        cursor.execute(
-            "SELECT tik_link, COUNT(*) FROM ticket WHERE tik_link = '%s' GROUP BY tik_link" % (specifier))
-    if "result" in table:
-        cursor.execute(
-            "SELECT refstack, COUNT(*) FROM result WHERE refstack = '%s' GROUP BY refstack" % (specifier))
-    if "license" in table:
-        cursor.execute(
-            "SELECT result_id, COUNT(*) FROM license WHERE result_id = '%s' GROUP BY result_id" % (specifier))
-    row_count = cursor.rowcount
-    if row_count == 0:
+def newChk(company_name, prod_name, cursor):                          
+    # this checks to see if the entry already exists. If it does not, the
+    # function returns a status of true, as in "entry is new"          
+    cursor.execute(
+        "SELECT COUNT(*) FROM company WHERE name = '%s'" % (company_name))  
+    company = cursor.fetchone()[0]
+    cursor.execute(                                                    
+        "SELECT COUNT(*) FROM product WHERE name = '%s'" % (prod_name))
+    product = cursor.fetchone()[0]                                     
+    if company == 1 and product == 1:                                  
+        return True                                                    
+    else:
         return False
-    return True
-
 
 def getCompanyId(cursor, company_name):
     cursor.execute("SELECT id FROM company WHERE name = '%s'" % (company_name))
@@ -117,24 +49,8 @@ def getProductId(cursor, product_name):
         product_id = 0
     return product_id
 
-
-def fedChk(federated):
-    if 'yes' in federated:
-        return 1
-    else:
-        return 0
-
-
-def updateLicenseChk(upd_status):
-    if 'yes' in upd_status:
-        return 1
-    else:
-        return 0
-
-
 def getTikId(ticket_link, product_id):
-    cursor.execute("SELECT id FROM ticket WHERE tik_link = '%s' AND product_id= '%d' IS NOT NULL" % (
-        ticket_link, product_id))
+    cursor.execute("SELECT id FROM ticket WHERE tik_link = '%s' AND product_id= '%d' IS NOT NULL" % (ticket_link, product_id))
     tik_id = cursor.fetchone()
     if tik_id is not None:
         tik_id = tik_id[0]
@@ -142,17 +58,46 @@ def getTikId(ticket_link, product_id):
         tik_id = 0
     return tik_id
 
+def splitEntry(guideline, component, passed_rel, reported_rel):
+    guidelines =[]; components = []; passed_rels = []; reported_rels = []
+    guidelines = guideline.replace("\n", " ").replace("\r", " ").split()
+    components = component.replace("\n", " ").replace("\r", " ").split()
+    passed_rels = passed_rel.replace("\n", " ").replace("\r", " ").split()
+    reported_rels = reported_rels.replace("\n", " ").replace("\r", " ").split()
+    return guidelines, components, passed_rels, reported_rels
 
-def pushResults(api_links, tik_id, guideline, product_id):
-    for link in api_links:
-        pushResult(link, tik_id, guideline, product_id)
+def linksChk(links, linect):
+    if links is None or not links:
+        return False
+    if linect == 2:
+        return True #not an error, just not a link
+    status = False
+    for x in links: 
+        try:
+            if " " in x:
+                status = False
+            response = urllib2.urlopen(x)
+            if response.geturl() == x:
+                status = True
+        except urllib2.HTTPError as err:
+            status= False
+    return status
 
-
-def pushResult(link, tik_id, guideline, product_id):
-    if not dup_chk(cursor, "result", link):
-        cursor.execute("INSERT INTO result(refstack, tik_id, guideline, _product_id_) VALUES('%s', '%d', '%s', '%d')" % (
-            link, tik_id, guideline, product_id))
-
+def fixLink(link):
+    links = []
+    newurls = []
+    if " " in link or not link or link == '':
+        return None
+    links = link.replace("\n", " ").replace("\r", " ").split(" ")
+    for x in links:
+        try:
+            baseDomain = x.split('/')[2]
+            testId = x.split('/')[-1]
+            newurl = "https://"+str(baseDomain)+"/api/v1/results/"+str(testId)
+            newurls.append(newurl)
+        except Exception:
+            return None
+    return newurls
 
 def push_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
                federated, ticket_link, lic_date, upd_status,
@@ -181,18 +126,11 @@ def push_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
         cursor.execute("INSERT INTO ticket(tik_link, product_id) VALUES('%s','%s')" % (
             ticket_link, product_id))
     tik_id = getTikId(ticket_link, product_id)
-    # print ("pushed ticket #"+str(tik_id))
+    #print ("pushed ticket #"+str(tik_id))
     db.commit()
 
 
-def flag_result(db, cursor, refstack_link, prod_name):
-    product_id = getProductId(cursor, prod_name)
-    cursor.execute("UPDATE result SET flagged = 1 WHERE refstack = '%s' AND _product_id_ = '%s'" % (
-        refstack_link, product_id))
-    db.commit()
-
-
-def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
+def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
                  federated, refstack_link, ticket_link, lic_date,  name, email,
                  lic_link, cursor, db):
     product_id = getProductId(cursor, prod_name)
@@ -216,13 +154,12 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
             cursor.execute("UPDATE contact SET email = '%s' WHERE company_id = '%s'" % (
                 email, company_id))
     cursor.execute(
-        "SELECT name FROM contact WHERE company_id ='%s'" % (company_id))
+        "SELECT name FROM contact WHERE company_id ='%s'" %(company_id))
     to_chk = cursor.fetchone()
     if to_chk is not None and to_chk[0] is not None:
         to_chk = to_chk[0]
         if name not in to_chk:
-            cursor.execute(
-                "UPDATE contact SET name = '%s' WHERE company_id = '%s'" % (name, company_id))
+            cursor.execute("UPDATE contact SET name = '%s' WHERE company_id = '%s'" %(name, company_id))
     # now update the product table
     cursor.execute("SELECT _release FROM product WHERE company_id ='%s' AND name = '%s'" % (
         company_id, prod_name))
@@ -242,7 +179,7 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
         cursor.execute("UPDATE product SET federated ='%s' WHERE company_id = '%s' and name = '%s'" % (
             federated, company_id, prod_name))
     # now update the ticket table
-    # get a result id
+    # get a result id 
     cursor.execute(
         "SELECT id FROM result WHERE _product_id_ ='%s'" % (product_id))
     result_id = cursor.fetchone()
@@ -268,126 +205,113 @@ def update_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     db.commit()
 
 
-def new_chk(company_name, prod_name, cursor):
-    # this checks to see if the entry already exists. If it does not, the
-    # function returns a status of true, as in "entry is new"
-    cursor.execute(
-        "SELECT COUNT(*) FROM company WHERE name = '%s'" % (company_name))
-    company = cursor.fetchone()[0]
-    cursor.execute(
-        "SELECT COUNT(*) FROM product WHERE name = '%s'" % (prod_name))
-    product = cursor.fetchone()[0]
-    if company == 1 and product == 1:
-        return True
-    else:
-        return False
 
+def get_entry(line):
+        company_name = line[0]
+        prod_name = line[1]
+        _type = line[2]
+        region = line[3]
+        guideline = line[4]
+        component = line[5]
+        reported_rel = line[6]
+        passed_rel = line[7]
+        federated = line[8]
+        refstack_link = line[9]
+        ticket_link = line[10]
+        marketp_link = line[11]
+        lic_date = line[12]
+        upd_status = line[13]
+        contact = line[14]
+        notes = line[15]
+        lic_link = line[16]
+        active = line[17]
+        public = line[18]
+        return company_name, prod_name, _type, region, guideline, component,\
+            reported_rel, passed_rel, federated, refstack_link, ticket_link,\
+            marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public
+
+def pushResult(link, tik_id, guideline, product_id):
+    if not dup_chk(cursor, "result", link):
+        cursor.execute("INSERT INTO result(refstack, tik_id, guideline, _product_id_) VALUES('%s', '%d', '%s', '%d')"% (
+            link, tik_id, guideline, product_id))
+
+def pushResults(api_links, tik_id, guideline, product_id):
+    for link in api_links:
+        pushResult(link, tik_id, guideline, product_id)    
 
 def splitContact(contact):
-    fields = []
-    # print contact
-    if not contact:
-        return None
-    fields = contact.split("<")
-    # print fields
-    return fields
+   fields = []
+   #print contact
+   if not contact:
+       return None
+   fields = contact.split("<")
+   #print fields
+   return fields
 
 
-def fixLinks(link):
-    links = []
-    newurls = []
-    if " " in link or not link:  # making sure this is an actual link
-        return None
-    links = link.replace("\n", " ").replace("\r", " ").split(" ")
-    for x in links:
-        base_domain = link.split('/')[2]
-        test_id = link.split('/')[-1]
-        newurl = "https://" + str(base_domain) + \
-            "/api/v1/results/" + str(test_id)
-        newurls.append(newurl)
-    return newurls
+def processEntry(entry, db, cursor, linect, dbStatus):
+    #get data fields 
+    company_name, prod_name, _type, region, guideline, component,\
+    reported_rel, passed_rel, federated, refstack_link, ticket_link,\
+    marketp_link, lic_data, upd_status, contact, notes, lic_link, active, public = get_entry(entry) 
+    api_links =[]; guidelines = []; components = []; passed_rels = []; reported_rels = [] 
+    # split entries
+    guidelines, components, passed_rels, reported_rels = splitEntry(guideline, component, passed_rel, reported_rel)
+    # check links
+    api_links = fixLink(refstack_link)
+    if not linksChk(api_links, linect):
+        print("The link associated with the product "+prod_name+" and the guideline "+guideline+
+              " is broken, or does not exist. please check and update this field in the spreadsheet")
+	notes = notes + "; this link is broken or does not exist. please check and update this field."
+        upd_status = "yes";
+        pushStatus = False
+    else:
+        pushStatus = True
+    # split the contact field properly
+    name, email = splitContact(contact) 
+    #for each entry that we have split off:
+    for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
+        # update spreadsheet
+        spreadsheet.append_row([company_name, prod_name, _type, region,             
+                                 w, x, y, z, federated, refstack_link,               
+                                 ticket_link, marketp_link, lic_date,                
+                                 upd_status, contact, notes, lic_link,               
+                                 active, public])  
+        if dbStatus or newChk(company_name, prod_name, cursor) and "Company" not not in company_name:
+           pushEntry(company_name, prod_name, w, z, y, federated,
+                     ticket_link, lic_date, upd_status, name, email,
+                     lic_link, cursor, db)
+        else:
+           updateEntry(company_name, prod_name, w, z, y,
+                 federated, refstack_link, ticket_link, lic_date,  name, email,
+                 lic_link, cursor, db) 
+    if pushStatus: # we do this later to ensure that we will have the appropriate product_id and ticket_id in the db
+        product_id = getProductId(cursor, product_name)
+        tik_id = getTikId(ticket_link, product_id) 
+        pushResults(api_links, tik_id, guideline, product_id)
 
 
-def link_exists(links):
-    if not links:  # handles empty fields
-        return False
-    for x in links:
-        try:
-            response = urllib2.urlopen(x)
-            # if(response.geturl() == x):  # returns false if redirect
-            #    status = False
-            # print("redirected")
-            # else:
-            return True
-        except urllib2.HTTPError as err:  # should catch any error codes
-            print("error: " + err)
-            status = False
-    return status
-
-
-api_links = []
-db = pymysql.connect("<MySQL db server>", "<user>"
-                     "<password>", "<MySQL db>")
-cursor = db.cursor()
+# connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-ServiceAccountCredentials.from_json_keyfile_name(
-    '<google credentials json file>', scope)
-doc_id = "<google spreadsheet id>"
+ServiceAccountCredentials.from_json_keyfile_name('<google credentials json file', scope)
+docId = "<google spreadsheet doc id>"
 client = gspread.authorize(credentials)
 doc = client.open_by_key(doc_id)
 spreadsheet = doc.worksheet('<spreadsheet name>')
+# connect to MySQL database
+db = pymysql.connect("<MySQL db server", "<user> ", "<password>", "<MySQL db name>")
+cursor = db.cursor()
+dbStatus = emptyChk(cursor)
+# get data from spreadsheet
 data = spreadsheet.get_all_values()
-rows = len(data)
-empty_db = empty_chk(cursor)
-for line in data:
-    company_name, prod_name, _type, region, guideline, component,\
-        reported_rel, passed_rel, federated, refstack_link, ticket_link,\
-        marketp_link, lic_date, upd_status, contact, lic_link, active, public = get_entry(
-            line)
-    if ticket_link is not None:
-        ticket_link = ticket_link.replace("\n", " ").replace("\r", " ")
-    contact_data = []
-    contact_data = splitContact(contact)
-    if contact_data is not None:
-        if contact_data[0]:
-            name = contact_data[0]
-        else:
-            name = "no name on file"
-        if len(contact_data) >= 1:
-            email = contact_data[-1]
-        else:
-            email = "no email on file"
-    else:
-        name = "no name on file"
-        email = "no email on file"
-    if company_name is None or prod_name is None:
-        continue
-    new_entry = new_chk(company_name, prod_name, cursor)
-    # if the db is empty, of if this entry does not exist, push entry
-    if empty_db or new_entry and "Company" not in company_name:
-        #print("pushing entry for the product: " + prod_name)
-        push_entry(company_name, prod_name, guideline, reported_rel,
-                   passed_rel, federated, ticket_link, lic_date,
-                   upd_status, name, email, lic_link, cursor, db)
-        # push result
-        api_links = fixLinks(refstack_link)
-        product_id = getProductId(cursor, prod_name)
-        tik_id = getTikId(ticket_link, product_id)
-        if api_links is not None:
-            pushResults(api_links, tik_id, guideline, product_id)
-    else:
-        #print("updating entry for the product: " + prod_name)
-        update_entry(company_name, prod_name, guideline, reported_rel,
-                     passed_rel, federated, refstack_link, ticket_link,
-                     lic_date, name, email, lic_link, cursor, db)
-        api_links = fixLinks(refstack_link)
-        if api_links is not None:
-            for link in api_links:
-                if not dup_chk(cursor, "result",  link):
-                    pushResult(link, tik_id, guideline, product_id)
-    if refstack_link is not None and company_name and prod_name:
-        if not link_exists(api_links):
-            print("The refstack result link for product " + prod_name +
-                  " and guideline " + guideline + " is broken."
-                  + " Please review this entry and try again.")
-        flag_result(db, cursor, refstack_link, prod_name)
+#resize spreadsheet so we can begin our sync
+#spreadsheet.resize(1)    <- removed for now until we get basic functionality going
+#process dataset
+linect = 1
+for entry in data:
+    processEntry(entry, db, cursor, linect, dbStatus)
+
+
+
+
+
