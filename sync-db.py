@@ -63,7 +63,7 @@ def splitEntry(guideline, component, passed_rel, reported_rel):
     guidelines = guideline.replace("\n", " ").replace("\r", " ").split()
     components = component.replace("\n", " ").replace("\r", " ").split()
     passed_rels = passed_rel.replace("\n", " ").replace("\r", " ").split()
-    reported_rels = reported_rels.replace("\n", " ").replace("\r", " ").split()
+    reported_rels = reported_rel.replace("\n", " ").replace("\r", " ").split()
     return guidelines, components, passed_rels, reported_rels
 
 def linksChk(links, linect):
@@ -96,15 +96,40 @@ def fixLink(link):
             newurl = "https://"+str(baseDomain)+"/api/v1/results/"+str(testId)
             newurls.append(newurl)
         except Exception:
-            return None
+            continue
     return newurls
 
-def push_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
+def dupChk(cursor, table, specifier):
+    if "company" in table:
+        cursor.execute(
+            "SELECT name, COUNT(*) FROM company WHERE name = '%s' GROUP BY name" % (specifier))
+    if "contact" in table:
+        cursor.execute(
+            "SELECT email, COUNT(*) FROM contact WHERE email = '%s' GROUP BY email" % (specifier))
+    if "product" in table:
+        cursor.execute(
+            "SELECT name, COUNT(*) FROM product WHERE name = '%s' GROUP BY name" % (specifier))
+    if "ticket" in table:
+        cursor.execute(
+            "SELECT tik_link, COUNT(*) FROM ticket WHERE tik_link = '%s' GROUP BY tik_link" % (specifier))
+    if "result" in table:
+        cursor.execute(
+            "SELECT refstack, COUNT(*) FROM result WHERE refstack = '%s' GROUP BY refstack" % (specifier))
+    if "license" in table:
+        cursor.execute(
+            "SELECT result_id, COUNT(*) FROM license WHERE result_id = '%s' GROUP BY result_id" % (specifier))
+    row_count = cursor.rowcount
+    if row_count == 0:
+        return False
+    return True
+
+
+def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
                federated, ticket_link, lic_date, upd_status,
                name, email, lic_link, cursor, db):
     federated = fedChk(federated)
     upd_status = updateLicenseChk(upd_status)
-    if not dup_chk(cursor, "company", company_name):
+    if not dupChk(cursor, "company", company_name):
         cursor.execute("INSERT INTO company(NAME) VALUES('%s')" %
                        (company_name))
     cursor.execute(
@@ -112,17 +137,17 @@ def push_entry(company_name, prod_name, guideline, reported_rel, passed_rel,
     company_id = getCompanyId(cursor, company_name)
     if company_id is None:
         return
-    if not(dup_chk(cursor, "contact", contact)):
+    if not(dupChk(cursor, "contact" ,str(name + " <" + email))):
         cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
             name, email, company_id))
-    if not(dup_chk(cursor, "product", prod_name)):
+    if not(dupChk(cursor, "product", prod_name)):
         cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update) VALUES('%s', '%s', '%d','%d', '%d')" % (
             prod_name, reported_rel, federated, company_id, upd_status))
     product_id = getProductId(cursor, prod_name)
     if product_id is None:
         return
     #print("product_id: " + str(product_id))
-    if not dup_chk(cursor, "ticket", ticket_link) and ' 'not in ticket_link:
+    if not dupChk(cursor, "ticket", ticket_link) and ' 'not in ticket_link:
         cursor.execute("INSERT INTO ticket(tik_link, product_id) VALUES('%s','%s')" % (
             ticket_link, product_id))
     tik_id = getTikId(ticket_link, product_id)
@@ -205,6 +230,18 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     db.commit()
 
 
+def fedChk(federated):
+    if 'yes' in federated:
+        return 1
+    else:
+        return 0
+
+
+def updateLicenseChk(upd_status):
+    if 'yes' in upd_status:
+        return 1
+    else:
+        return 0
 
 def get_entry(line):
         company_name = line[0]
@@ -231,7 +268,7 @@ def get_entry(line):
             marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public
 
 def pushResult(link, tik_id, guideline, product_id):
-    if not dup_chk(cursor, "result", link):
+    if not dupChk(cursor, "result", link):
         cursor.execute("INSERT INTO result(refstack, tik_id, guideline, _product_id_) VALUES('%s', '%d', '%s', '%d')"% (
             link, tik_id, guideline, product_id))
 
@@ -240,72 +277,79 @@ def pushResults(api_links, tik_id, guideline, product_id):
         pushResult(link, tik_id, guideline, product_id)    
 
 def splitContact(contact):
-   fields = []
-   #print contact
-   if not contact:
-       return None
-   fields = contact.split("<")
-   #print fields
-   return fields
+    fields = []
+    #print contact
+    fields = contact.replace("\n", " ").replace("\r", " ").split("<")
+    try:
+        name = fields[0]
+    except Exception:
+        name = "no name on record"
+    try:
+        email = fields[1]
+    except Exception:
+        email = "no email on file"
+    return name, email
 
 
 def processEntry(entry, db, cursor, linect, dbStatus):
     #get data fields 
     company_name, prod_name, _type, region, guideline, component,\
     reported_rel, passed_rel, federated, refstack_link, ticket_link,\
-    marketp_link, lic_data, upd_status, contact, notes, lic_link, active, public = get_entry(entry) 
-    api_links =[]; guidelines = []; components = []; passed_rels = []; reported_rels = [] 
-    # split entries
-    guidelines, components, passed_rels, reported_rels = splitEntry(guideline, component, passed_rel, reported_rel)
-    # check links
-    api_links = fixLink(refstack_link)
-    if not linksChk(api_links, linect):
-        print("The link associated with the product "+prod_name+" and the guideline "+guideline+
-              " is broken, or does not exist. please check and update this field in the spreadsheet")
-	notes = notes + "; this link is broken or does not exist. please check and update this field."
-        upd_status = "yes";
-        pushStatus = False
-    else:
+    marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public = get_entry(entry) 
+    if company_name and prod_name and company_name is not "" and prod_name is not "" and company_name is not " " and prod_name is not " ":
+        api_links =[]; guidelines = []; components = []; passed_rels = []; reported_rels = [] 
+        # split entries
+        guidelines, components, passed_rels, reported_rels = splitEntry(guideline, component, passed_rel, reported_rel)
+        # check links
         pushStatus = True
-    # split the contact field properly
-    name, email = splitContact(contact) 
-    #for each entry that we have split off:
-    for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
-        # update spreadsheet
-        spreadsheet.append_row([company_name, prod_name, _type, region,             
-                                 w, x, y, z, federated, refstack_link,               
-                                 ticket_link, marketp_link, lic_date,                
-                                 upd_status, contact, notes, lic_link,               
-                                 active, public])  
-        if dbStatus or newChk(company_name, prod_name, cursor) and "Company" not not in company_name:
-           pushEntry(company_name, prod_name, w, z, y, federated,
-                     ticket_link, lic_date, upd_status, name, email,
-                     lic_link, cursor, db)
-        else:
-           updateEntry(company_name, prod_name, w, z, y,
-                 federated, refstack_link, ticket_link, lic_date,  name, email,
-                 lic_link, cursor, db) 
-    if pushStatus: # we do this later to ensure that we will have the appropriate product_id and ticket_id in the db
-        product_id = getProductId(cursor, product_name)
-        tik_id = getTikId(ticket_link, product_id) 
-        pushResults(api_links, tik_id, guideline, product_id)
+        api_links = fixLink(refstack_link)
+        if not linksChk(api_links, linect):
+            print("The link associated with the product "+prod_name+" and the guideline "+guideline+
+                  " is broken, or does not exist. please check and update this field in the spreadsheet")
+	    notes = notes + "; this link is broken or does not exist. please check and update this field."
+            upd_status = "yes";
+            pushStatus = False
+        # split the contact field properly
+        name, email = splitContact(contact) 
+        #for each entry that we have split off:
+        for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
+            # update spreadsheet
+            print("pushing result related to " + company_name + " and " + prod_name + " to spreadsheet")
+            spreadsheet.append_row([company_name, prod_name, _type, region,             
+                                     w, x, y, z, federated, refstack_link,               
+                                     ticket_link, marketp_link, lic_date,                
+                                     upd_status, contact, notes, lic_link,               
+                                     active, public])  
+            if dbStatus or newChk(company_name, prod_name, cursor) and "Company" not in company_name:
+               pushEntry(company_name, prod_name, w, z, y, federated,
+                         ticket_link, lic_date, upd_status, name, email,
+                         lic_link, cursor, db)
+            else:
+               updateEntry(company_name, prod_name, w, z, y,
+                     federated, refstack_link, ticket_link, lic_date,  name, email,
+                     lic_link, cursor, db) 
+        if pushStatus: # we do this later to ensure that we will have the appropriate product_id and ticket_id in the db
+            product_id = getProductId(cursor, prod_name)
+            tik_id = getTikId(ticket_link, product_id) 
+            pushResults(api_links, tik_id, guideline, product_id)
 
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-ServiceAccountCredentials.from_json_keyfile_name('<google credentials json file', scope)
+credentials = ServiceAccountCredentials.from_json_keyfile_name('<google api credentials json file>', scope)
 docId = "<google spreadsheet doc id>"
 client = gspread.authorize(credentials)
-doc = client.open_by_key(doc_id)
-spreadsheet = doc.worksheet('<spreadsheet name>')
+doc = client.open_by_key(docId)
+spreadsheet = doc.worksheet('spreadsheet name')
 # connect to MySQL database
-db = pymysql.connect("<MySQL db server", "<user> ", "<password>", "<MySQL db name>")
+db = pymysql.connect("<MySQL db server>", "<user>", "<password>", "<MySQL db>")
 cursor = db.cursor()
 dbStatus = emptyChk(cursor)
 # get data from spreadsheet
 data = spreadsheet.get_all_values()
 #resize spreadsheet so we can begin our sync
-#spreadsheet.resize(1)    <- removed for now until we get basic functionality going
+spreadsheet.resize(1)#<- removed for now until we get basic functionality going
+spreadsheet.clear()
 #process dataset
 linect = 1
 for entry in data:
