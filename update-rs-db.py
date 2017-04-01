@@ -11,8 +11,8 @@ import sys
 import subprocess
 import requests
 #from imp import reload
-#reload(sys)
-#sys.setdefaultencoding('utf-8')
+# reload(sys)
+# sys.setdefaultencoding('utf-8')
 # this presumes the spreadsheet is up to date
 
 
@@ -61,7 +61,8 @@ def getTestId(productName):
     cursor.execute("SELECT id FROM product WHERE name = '%s'" % (productName))
     productId = cursor.fetchone()
     if productId is None:
-        print ("No product associated with the given name was found")
+        print ("No product associated with the name " +
+               productName + " was found")
         return None
     else:
         productId = productId[0]
@@ -103,16 +104,19 @@ def processLink(line, linect, cursor):
     # get the related testId
     testId = getTestId(line[1])
     # next, we will update the our local refstack db
-    command = "POST /v1/results/testId/meta/shared request body: 'true'"
-    subprocess.Popen([command])
+    # POST /v1/results/testId/meta/shared request body: 'true'
+    resp = requests.post(
+        'https://refstack.openstack.org/v1/results/testId/meta/shared', data='true')
     guideline = line[4]
     if guideline and guideline != "" and guideline != " ":
-        command = "POST /v1/results/testId/meta/guideline  request body: guideline"
-        subprocess.Popen([command])
+        #command = "POST /v1/results/testId/meta/guideline  request body: guideline"
+        resp = requests.post(
+            'https://refstack.openstack.org/v1/results/testId/meta/guideline', data=guideline)
     targetProgram = line[5]
     if targetProgram and targetProgram != "" and targetProgram != " ":
-        command = "POST /v1/results/testId/meta/target request body: targetProgram"
-        subprocess.Popen([command])
+        #command = "POST /v1/results/testId/meta/target request body: targetProgram"
+        resp = requests.post(
+            'https://refstack.openstack.org/v1/results/testId/meta/target', data=targetProgram)
     # now return the related test ID
     if testId is None:
         return False, None
@@ -126,11 +130,11 @@ cursor = db.cursor()
 # connect to the spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
-    '<google api credentials json file>', scope)
+    '<google api credential json file>', scope)
 docId = "<google spreadsheet document id>"
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
-spreadsheet = doc.worksheet('<spreadsheet name')
+spreadsheet = doc.worksheet('<spreadsheet name>')
 # now get our dataset
 data = spreadsheet.get_all_values()
 # now check each entry
@@ -140,5 +144,6 @@ for entry in data:
     # check if the data in this line can be verified
     verify, testId = processLink(entry, linect, cursor)
     if verify:
-        command = "PUT /v1/results/testId request body:{verification_status: 1}"
-        subprocess.run(command)
+        #"PUT /v1/results/testId request body:{verification_status: 1}"
+        resp = requests.put(
+            'https://refstack.openstack.org/v1/results/testId/', data={verification_status: 1})
