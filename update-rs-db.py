@@ -61,7 +61,6 @@ def getTestId(productName):
     cursor.execute("SELECT id FROM product WHERE name = '%s'" % (productName))
     productId = cursor.fetchone()
     if productId is None:
-        print ("No product associated with the name " +
                productName + " was found")
         return None
     else:
@@ -70,7 +69,6 @@ def getTestId(productName):
         "SELECT id from product_version WHERE product_id = '%s'" % (productId))
     productVersionId = cursor.fetchone()
     if productVersionId is None:
-        print("No product version associated with the given name was found")
         return None
     else:
         productVersionId = productVersionId[0]
@@ -78,7 +76,6 @@ def getTestId(productName):
         "SELECT id from test WHERE product_version_id = '%s'" % (productVersionId))
     testId = cursor.fetchone()
     if testId is None:
-        print("No test associated with the given name was found")
         return None
     else:
         testId = testId[0]
