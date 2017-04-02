@@ -93,6 +93,8 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
     * verifies the validity of the refstack result link
     * updates relevant fields in the internal db based on spreadsheet data
     * if all info is valid, change test status to verified
+  - HAS BEEN SUBMITTED AS A REFSTACK PATCH FOR FURTHER TESTING. you can view this patch at
+    https://review.openstack.org/#/c/452518/
 
 ////////////////////////////////////////Coming Soon ///////////////////////////////////////////////
 
