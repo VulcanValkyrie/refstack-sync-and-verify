@@ -70,6 +70,9 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
       in the internal db, and then updates the "verified" field in the "test" field
     - this can likely be expanded (if needed) to check whether the product has passed testing for
       the specified guideline
+* 4/2/17
+    - created preliminary version of the mechanism which creates the db. I plan on using this in
+      the sync-db script to create the db if it is not already there
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
@@ -79,6 +82,9 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
   - adds new records for product pairs that have been recently added to the spreadsheet
   - checks links and flags test results whose links are broken / nonexistent
   - pushes entries with updated flags and comments back to the spreadsheet.
+* build-db.py
+  - creates mysql db using sql alchemy for usage in the sync-db script
+  - still buggy, running into credentials-based quirks
 * check-spreadsheet.py
   - checks links
   - reformats lines with multiple entries for the sake of easier updatability
