@@ -75,7 +75,10 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
       the sync-db script to create the db if it is not already there
 * 4/3/17
     - elimated typo which kept ZenDesk tickets from being added separately into the database
-
+    - eliminated typo which led to the product_id fields in both the result and the ticket tables
+      always equaling zero due to failed queries
+    - removed newlines in company name field, leading to more formatting-congruency within the
+      company table
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
 * sync-db.py

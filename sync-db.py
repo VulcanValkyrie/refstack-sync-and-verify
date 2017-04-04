@@ -43,7 +43,7 @@ def getCompanyId(cursor, company_name):
 
 
 def getProductId(cursor, product_name):
-    cursor.execute("SELECT id FROM company WHERE name = '%s'" % (product_name))
+    cursor.execute("SELECT id FROM product WHERE name = '%s'" % (product_name))
     product_id = cursor.fetchone()
     if product_id is not None:
         product_id = product_id[0]
@@ -53,7 +53,7 @@ def getProductId(cursor, product_name):
 
 
 def getTikId(ticket_link, product_id):
-    cursor.execute("SELECT id FROM ticket WHERE tik_link = '%s' AND product_id= '%d' IS NOT NULL" % (
+    cursor.execute("SELECT id FROM ticket WHERE tik_link = '%s' AND product_id= '%s' IS NOT NULL" % (
         ticket_link, product_id))
     tik_id = cursor.fetchone()
     if tik_id is not None:
@@ -150,6 +150,7 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     if not dupChk(cursor, "company", company_name):
         cursor.execute("INSERT INTO company(NAME) VALUES('%s')" %
                        (company_name))
+    db.commit()
     cursor.execute(
         "SELECT id FROM company WHERE name = '%s'" % (company_name))
     company_id = getCompanyId(cursor, company_name)
@@ -161,18 +162,16 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     if not(dupChk(cursor, "product", prod_name)):
         cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update) VALUES('%s', '%s', '%d','%d', '%d')" % (
             prod_name, reported_rel, federated, company_id, upd_status))
+    db.commit()
     product_id = getProductId(cursor, prod_name)
     if product_id is None:
         return
-    #print("product_id: " + str(product_id))
     tickets = []
     tickets = splitTiks(ticket_link)
     for link in tickets:
         if not dupChk(cursor, "ticket", ticket_link):
             cursor.execute("INSERT INTO ticket(tik_link, product_id) VALUES('%s','%s')" % (
                 link, product_id))
-    #tik_id = getTikId(ticket_link, product_id)
-    # print ("pushed ticket #"+str(tik_id))
     db.commit()
 
 
@@ -181,7 +180,6 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
                 lic_link, cursor, db):
     product_id = getProductId(cursor, prod_name)
     company_id = getCompanyId(cursor, company_name)
-    # guideline table updates
     cursor.execute(
         "SELECT guideline FROM result WHERE guideline ='%s'" % (guideline))
     to_chk = cursor.fetchone()
@@ -286,6 +284,7 @@ def get_entry(line):
     lic_link = line[16]
     active = line[17]
     public = line[18]
+    company_name = company_name.replace("\n", " ").replace("\r", " ")
     return company_name, prod_name, _type, region, guideline, component,\
         reported_rel, passed_rel, federated, refstack_link, ticket_link,\
         marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public
@@ -335,6 +334,8 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         # check links
         pushStatus = True
         api_links = fixLink(refstack_link)
+        #print("link list: ")
+        # print(api_links)
         if not linksChk(api_links, linect):
             print("The link associated with the product " + prod_name + " and the guideline " + guideline +
                   " is broken, or does not exist. please check and update this field in the spreadsheet")
@@ -379,13 +380,13 @@ def processEntry(entry, db, cursor, linect, dbStatus):
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-credentials = ServiceAccountCredentials.from_json_keyfile_name(< Google api credentials json file > , scope)
+credentials = ServiceAccountCredentials.from_json_keyfile_name(< google api credentials json file > , scope)
 docId = <Google spreadsheet id >
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
 spreadsheet = doc.worksheet(< spreadsheet name > )
 # connect to MySQL database
-db = pymysql.connect("localhost", < user >, < password > , "refstack_vendordata")
+db = pymysql.connect("localhost", < user >, < password > , "refstack_vendor_data")
 cursor = db.cursor()
 dbStatus = emptyChk(cursor)
 # get data from spreadsheet
@@ -394,7 +395,6 @@ data = spreadsheet.get_all_values()
 # <- removed for now until we get basic functionality going
 spreadsheet.resize(1)
 spreadsheet.clear()
-# process dataset
 linect = 0
 for entry in data:
     linect = linect + 1
