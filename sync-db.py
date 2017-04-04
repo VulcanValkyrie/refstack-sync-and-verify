@@ -111,6 +111,12 @@ def fixLink(link):
     return newurls
 
 
+def splitTiks(ticket_link):
+    links = []
+    links = ticket_link.replace("\n", " ").replace("\r", " ").split()
+    return links
+
+
 def dupChk(cursor, table, specifier):
     if "company" in table:
         cursor.execute(
@@ -159,10 +165,13 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     if product_id is None:
         return
     #print("product_id: " + str(product_id))
-    if not dupChk(cursor, "ticket", ticket_link) and ' 'not in ticket_link:
-        cursor.execute("INSERT INTO ticket(tik_link, product_id) VALUES('%s','%s')" % (
-            ticket_link, product_id))
-    tik_id = getTikId(ticket_link, product_id)
+    tickets = []
+    tickets = splitTiks(ticket_link)
+    for link in tickets:
+        if not dupChk(cursor, "ticket", ticket_link):
+            cursor.execute("INSERT INTO ticket(tik_link, product_id) VALUES('%s','%s')" % (
+                link, product_id))
+    #tik_id = getTikId(ticket_link, product_id)
     # print ("pushed ticket #"+str(tik_id))
     db.commit()
 
@@ -348,6 +357,7 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         # else:
         for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
             # update spreadsheet
+            #print("pushing result related to " + company_name + " and " + prod_name + " to spreadsheet")
             spreadsheet.append_row([company_name, prod_name, _type, region,
                                     w, x, y, z, federated, refstack_link,
                                     ticket_link, marketp_link, lic_date,
@@ -369,24 +379,23 @@ def processEntry(entry, db, cursor, linect, dbStatus):
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-credentials = ServiceAccountCredentials.from_json_keyfile_name(
-    '<google api credentials json file>', scope)
-docId = "<google spreadsheet document id>"
+credentials = ServiceAccountCredentials.from_json_keyfile_name(< Google api credentials json file > , scope)
+docId = <Google spreadsheet id >
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
-spreadsheet = doc.worksheet('<spreadsheet name>')
+spreadsheet = doc.worksheet(< spreadsheet name > )
 # connect to MySQL database
-db = pymysql.connect("<MySQL db server>", "<db user>",
-                     "<password>", "<MySQL db>")
+db = pymysql.connect("localhost", < user >, < password > , "refstack_vendordata")
 cursor = db.cursor()
 dbStatus = emptyChk(cursor)
 # get data from spreadsheet
 data = spreadsheet.get_all_values()
 # resize spreadsheet so we can begin our sync
+# <- removed for now until we get basic functionality going
 spreadsheet.resize(1)
 spreadsheet.clear()
 # process dataset
-linect = 1
+linect = 0
 for entry in data:
     linect = linect + 1
     processEntry(entry, db, cursor, linect, dbStatus)

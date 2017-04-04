@@ -73,6 +73,8 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
 * 4/2/17
     - created preliminary version of the mechanism which creates the db. I plan on using this in
       the sync-db script to create the db if it is not already there
+* 4/3/17
+    - elimated typo which kept ZenDesk tickets from being added separately into the database
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
