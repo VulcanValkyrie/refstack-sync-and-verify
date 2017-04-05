@@ -143,8 +143,7 @@ def dupChk(cursor, table, specifier):
 
 
 def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
-              federated, ticket_link, lic_date, upd_status,
-              name, email, lic_link, cursor, db):
+              federated, ticket_link, lic_date, upd_status, lic_link, cursor, db):
     federated = fedChk(federated)
     upd_status = updateLicenseChk(upd_status)
     if not dupChk(cursor, "company", company_name):
@@ -156,30 +155,43 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     company_id = getCompanyId(cursor, company_name)
     if company_id is None:
         return
-    if not(dupChk(cursor, "contact", str(name + " <" + email))):
-        cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
-            name, email, company_id))
+    # if not(dupChk(cursor, "contact" ,str(name + " <" + email))):
+    #    cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
+    #        name, email, company_id))
     if not(dupChk(cursor, "product", prod_name)):
         cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update) VALUES('%s', '%s', '%d','%d', '%d')" % (
-            prod_name, reported_rel, federated, company_id, upd_status))
+                       prod_name, reported_rel, federated, company_id, upd_status))
     db.commit()
     product_id = getProductId(cursor, prod_name)
     if product_id is None:
         return
+    #print("product_id: " + str(product_id))
     tickets = []
     tickets = splitTiks(ticket_link)
     for link in tickets:
         if not dupChk(cursor, "ticket", ticket_link):
             cursor.execute("INSERT INTO ticket(tik_link, product_id) VALUES('%s','%s')" % (
                 link, product_id))
+    #tik_id = getTikId(ticket_link, product_id)
+    # print ("pushed ticket #"+str(tik_id))
     db.commit()
 
 
+def pushContacts(contact, company_id):
+    contacts = []
+    contacts = contact.replace("\n", " ").replace("\r", " ").split("> ,")
+    for x in contacts:
+        name, email = splitContact(x)
+        if not(dupChk(cursor, "contact", str(name + " <" + email))):
+            cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
+                name, email, company_id))
+
+
 def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
-                federated, refstack_link, ticket_link, lic_date,  name, email,
-                lic_link, cursor, db):
+                federated, refstack_link, ticket_link, lic_date, lic_link, cursor, db):
     product_id = getProductId(cursor, prod_name)
     company_id = getCompanyId(cursor, company_name)
+    # guideline table updates
     cursor.execute(
         "SELECT guideline FROM result WHERE guideline ='%s'" % (guideline))
     to_chk = cursor.fetchone()
@@ -190,21 +202,10 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
                 guideline, product_id, refstack_link))
     # now we update our contact table
     cursor.execute(
-        "SELECT email FROM contact WHERE company_id ='%s'" % (company_id))
-    to_chk = cursor.fetchone()
-    if to_chk is not None:
-        to_chk = to_chk[0]
-        if email not in to_chk:
-            cursor.execute("UPDATE contact SET email = '%s' WHERE company_id = '%s'" % (
-                email, company_id))
-    cursor.execute(
         "SELECT name FROM contact WHERE company_id ='%s'" % (company_id))
     to_chk = cursor.fetchone()
     if to_chk is not None and to_chk[0] is not None:
         to_chk = to_chk[0]
-        if name not in to_chk:
-            cursor.execute(
-                "UPDATE contact SET name = '%s' WHERE company_id = '%s'" % (name, company_id))
     # now update the product table
     cursor.execute("SELECT _release FROM product WHERE company_id ='%s' AND name = '%s'" % (
         company_id, prod_name))
@@ -343,7 +344,7 @@ def processEntry(entry, db, cursor, linect, dbStatus):
             upd_status = "yes"
             pushStatus = False
         # split the contact field properly
-        name, email = splitContact(contact)
+        #name, email = splitContact(contact)
         # for each entry that we have split off:
         # this case takes care of more complete entries
         if not guidelines or not components or not passed_rels or not reported_rels:
@@ -366,27 +367,27 @@ def processEntry(entry, db, cursor, linect, dbStatus):
                                     active, public])
             if dbStatus or newChk(company_name, prod_name, cursor) and "Company" not in company_name:
                 pushEntry(company_name, prod_name, w, z, y, federated,
-                          ticket_link, lic_date, upd_status, name, email,
-                          lic_link, cursor, db)
+                          ticket_link, lic_date, upd_status, lic_link, cursor, db)
             else:
-                updateEntry(company_name, prod_name, w, z, y,
-                            federated, refstack_link, ticket_link, lic_date,  name, email,
-                            lic_link, cursor, db)
+                updateEntry(company_name, prod_name, w, z, y, federated, refstack_link, ticket_link,
+                            lic_date, lic_link, cursor, db)
         if pushStatus:  # we do this later to ensure that we will have the appropriate product_id and ticket_id in the db
             product_id = getProductId(cursor, prod_name)
             tik_id = getTikId(ticket_link, product_id)
+            company_id = getCompanyId(cursor, company_name)
+            pushContacts(contact, company_id)
             pushResults(api_links, tik_id, guideline, product_id)
 
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-credentials = ServiceAccountCredentials.from_json_keyfile_name(< google api credentials json file > , scope)
-docId = <Google spreadsheet id >
+credentials = ServiceAccountCredentials.from_json_keyfile_name( < Google api credentials json file > , scope)
+docId = <Google spreadsheet document Id >
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
-spreadsheet = doc.worksheet(< spreadsheet name > )
+spreadsheet = doc.worksheet( < spreadsheet name > )
 # connect to MySQL database
-db = pymysql.connect("localhost", < user >, < password > , "refstack_vendor_data")
+db = pymysql.connect( < MySQL db server > , < user > , < password > , "refstack_vendor_data")
 cursor = db.cursor()
 dbStatus = emptyChk(cursor)
 # get data from spreadsheet
@@ -395,6 +396,7 @@ data = spreadsheet.get_all_values()
 # <- removed for now until we get basic functionality going
 spreadsheet.resize(1)
 spreadsheet.clear()
+# process dataset
 linect = 0
 for entry in data:
     linect = linect + 1
