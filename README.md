@@ -79,6 +79,9 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
       always equaling zero due to failed queries
     - removed newlines in company name field, leading to more formatting-congruency within the
       company table
+* 4/4/17
+    - worked on removing anomalies from the contact addition process. Still has a few minor quirks
+
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
 * sync-db.py
