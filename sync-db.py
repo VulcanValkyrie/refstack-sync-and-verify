@@ -53,7 +53,7 @@ def getProductId(cursor, product_name):
 
 
 def getTikId(ticket_link, product_id):
-    cursor.execute("SELECT id FROM ticket WHERE tik_link = '%s' AND product_id= '%s' IS NOT NULL" % (
+    cursor.execute("SELECT id FROM ticket WHERE tik_link = '%s' AND product_id= '%s'" % (
         ticket_link, product_id))
     tik_id = cursor.fetchone()
     if tik_id is not None:
@@ -177,14 +177,11 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     db.commit()
 
 
-def pushContacts(contact, company_id):
-    contacts = []
-    contacts = contact.replace("\n", " ").replace("\r", " ").split("> ,")
-    for x in contacts:
-        name, email = splitContact(x)
-        if not(dupChk(cursor, "contact", str(name + " <" + email))):
+def pushContacts(names, emails, company_id):
+    for x, y in zip(names, emails):
+        if not(dupChk(cursor, "contact", str(x + " <" + y + ">"))) and "no name on record" not in x and x != '':
             cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
-                name, email, company_id))
+                x, y, company_id))
 
 
 def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
@@ -304,17 +301,24 @@ def pushResults(api_links, tik_id, guideline, product_id):
 
 def splitContact(contact):
     fields = []
+    entry = []
+    names = []
+    emails = []
     # print contact
-    fields = contact.replace("\n", " ").replace("\r", " ").split("<")
-    try:
-        name = fields[0]
-    except Exception:
-        name = "no name on record"
-    try:
-        email = fields[1]
-    except Exception:
-        email = "no email on file"
-    return name, email
+    fields = contact.replace("\n", " ").replace("\r", " ").split(">")
+    for x in fields:
+        entry = x.split("<")
+        try:
+            name = entry[0]
+        except Exception:
+            name = "no name on record"
+        names.append(name)
+        try:
+            email = entry[1]
+        except Exception:
+            email = "no email on file"
+        emails.append(email)
+    return names, emails
 
 
 def processEntry(entry, db, cursor, linect, dbStatus):
@@ -323,7 +327,7 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         reported_rel, passed_rel, federated, refstack_link, ticket_link,\
         marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public = get_entry(
             entry)
-    if company_name and prod_name and company_name is not "" and prod_name is not "" and company_name is not " " and prod_name is not " ":
+    if company_name and prod_name and company_name is not "" and prod_name is not "" and linect != 2:
         api_links = []
         guidelines = []
         components = []
@@ -375,19 +379,22 @@ def processEntry(entry, db, cursor, linect, dbStatus):
             product_id = getProductId(cursor, prod_name)
             tik_id = getTikId(ticket_link, product_id)
             company_id = getCompanyId(cursor, company_name)
-            pushContacts(contact, company_id)
+            names = []
+            emails = []
+            names, emails = splitContact(contact)
+            pushContacts(names, emails, company_id)
             pushResults(api_links, tik_id, guideline, product_id)
 
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-credentials = ServiceAccountCredentials.from_json_keyfile_name( < Google api credentials json file > , scope)
-docId = <Google spreadsheet document Id >
+credentials = ServiceAccountCredentials.from_json_keyfile_name(< Google api credentials json file > , scope)
+docId = <Google spreadsheet doc id >
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
-spreadsheet = doc.worksheet( < spreadsheet name > )
+spreadsheet = doc.worksheet('current')
 # connect to MySQL database
-db = pymysql.connect( < MySQL db server > , < user > , < password > , "refstack_vendor_data")
+db = pymysql.connect("localhost", < user >, < password > , "refstack_vendor_data")
 cursor = db.cursor()
 dbStatus = emptyChk(cursor)
 # get data from spreadsheet
