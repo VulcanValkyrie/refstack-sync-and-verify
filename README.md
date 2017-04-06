@@ -81,6 +81,9 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
       company table
 * 4/4/17
     - worked on removing anomalies from the contact addition process. Still has a few minor quirks
+* 4/5/17
+    - contact addition process remedied; the phenomena which caused the header row to be added
+      into the db has been fixed as well.
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
