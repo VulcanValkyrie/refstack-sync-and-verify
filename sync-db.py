@@ -143,7 +143,7 @@ def dupChk(cursor, table, specifier):
 
 
 def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
-              federated, ticket_link, lic_date, upd_status, lic_link, cursor, db):
+              federated, _type, ticket_link, lic_date, upd_status, lic_link, cursor, db):
     federated = fedChk(federated)
     upd_status = updateLicenseChk(upd_status)
     if not dupChk(cursor, "company", company_name):
@@ -158,9 +158,15 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     # if not(dupChk(cursor, "contact" ,str(name + " <" + email))):
     #    cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
     #        name, email, company_id))
+    if "Priv" in _type:
+        newtype = 2
+    elif "Publ" in _type:
+        newtype = 1
+    else:
+        newtype = 0
     if not(dupChk(cursor, "product", prod_name)):
-        cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update) VALUES('%s', '%s', '%d','%d', '%d')" % (
-                       prod_name, reported_rel, federated, company_id, upd_status))
+        cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update, type) VALUES('%s', '%s', '%d','%d', '%d', '%d')" %
+                       (prod_name, reported_rel, federated, company_id, upd_status, newtype))
     db.commit()
     product_id = getProductId(cursor, prod_name)
     if product_id is None:
@@ -179,7 +185,7 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
 
 def pushContacts(names, emails, company_id):
     for x, y in zip(names, emails):
-        if not(dupChk(cursor, "contact", str(x + " <" + y + ">"))) and "no name on record" not in x and x != '':
+        if not(dupChk(cursor, "contact", str(x + " <" + y + ">"))) and "no name on record" not in x and x != '' and x != " ":
             cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
                 x, y, company_id))
 
@@ -370,7 +376,7 @@ def processEntry(entry, db, cursor, linect, dbStatus):
                                     upd_status, contact, notes, lic_link,
                                     active, public])
             if dbStatus or newChk(company_name, prod_name, cursor) and "Company" not in company_name:
-                pushEntry(company_name, prod_name, w, z, y, federated,
+                pushEntry(company_name, prod_name, w, z, y, federated, _type,
                           ticket_link, lic_date, upd_status, lic_link, cursor, db)
             else:
                 updateEntry(company_name, prod_name, w, z, y, federated, refstack_link, ticket_link,
@@ -378,10 +384,12 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         if pushStatus:  # we do this later to ensure that we will have the appropriate product_id and ticket_id in the db
             product_id = getProductId(cursor, prod_name)
             tik_id = getTikId(ticket_link, product_id)
+            print(str(tik_id) + " belongs to the product of id: " + str(product_id))
             company_id = getCompanyId(cursor, company_name)
             names = []
             emails = []
             names, emails = splitContact(contact)
+            #print(names); print(emails)
             pushContacts(names, emails, company_id)
             pushResults(api_links, tik_id, guideline, product_id)
 
@@ -389,10 +397,10 @@ def processEntry(entry, db, cursor, linect, dbStatus):
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(< Google api credentials json file > , scope)
-docId = <Google spreadsheet doc id >
+docId = <Google spreadsheet document id >
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
-spreadsheet = doc.worksheet('current')
+spreadsheet = doc.worksheet(< spreadsheet name > )
 # connect to MySQL database
 db = pymysql.connect("localhost", < user >, < password > , "refstack_vendor_data")
 cursor = db.cursor()
