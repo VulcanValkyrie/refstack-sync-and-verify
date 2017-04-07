@@ -155,9 +155,6 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     company_id = getCompanyId(cursor, company_name)
     if company_id is None:
         return
-    # if not(dupChk(cursor, "contact" ,str(name + " <" + email))):
-    #    cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
-    #        name, email, company_id))
     if "Priv" in _type:
         newtype = 2
     elif "Publ" in _type:
@@ -171,15 +168,12 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     product_id = getProductId(cursor, prod_name)
     if product_id is None:
         return
-    #print("product_id: " + str(product_id))
     tickets = []
     tickets = splitTiks(ticket_link)
     for link in tickets:
         if not dupChk(cursor, "ticket", ticket_link):
             cursor.execute("INSERT INTO ticket(tik_link, product_id) VALUES('%s','%s')" % (
                 link, product_id))
-    #tik_id = getTikId(ticket_link, product_id)
-    # print ("pushed ticket #"+str(tik_id))
     db.commit()
 
 
@@ -353,10 +347,6 @@ def processEntry(entry, db, cursor, linect, dbStatus):
             notes = notes + "; this link is broken or does not exist. please check and update this field."
             upd_status = "yes"
             pushStatus = False
-        # split the contact field properly
-        #name, email = splitContact(contact)
-        # for each entry that we have split off:
-        # this case takes care of more complete entries
         if not guidelines or not components or not passed_rels or not reported_rels:
             if not guidelines:
                 guidelines = [' ']
@@ -369,7 +359,6 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         # else:
         for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
             # update spreadsheet
-            #print("pushing result related to " + company_name + " and " + prod_name + " to spreadsheet")
             spreadsheet.append_row([company_name, prod_name, _type, region,
                                     w, x, y, z, federated, refstack_link,
                                     ticket_link, marketp_link, lic_date,
@@ -384,12 +373,10 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         if pushStatus:  # we do this later to ensure that we will have the appropriate product_id and ticket_id in the db
             product_id = getProductId(cursor, prod_name)
             tik_id = getTikId(ticket_link, product_id)
-            print(str(tik_id) + " belongs to the product of id: " + str(product_id))
             company_id = getCompanyId(cursor, company_name)
             names = []
             emails = []
             names, emails = splitContact(contact)
-            #print(names); print(emails)
             pushContacts(names, emails, company_id)
             pushResults(api_links, tik_id, guideline, product_id)
 

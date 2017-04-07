@@ -84,6 +84,9 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
 * 4/5/17
     - contact addition process remedied; the phenomena which caused the header row to be added
       into the db has been fixed as well.
+* 4/6/17
+    - removed error which did not allow for the addition of product types to the db. worked on
+      troubleshooting errors to do with ticket number querying
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
