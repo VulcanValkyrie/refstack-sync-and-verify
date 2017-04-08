@@ -120,9 +120,8 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
 
 * sync-db.py
   - planning to refactor for increased simplicity / less code replication(IN PROGRESS)
-  - set up a deployment script for the internal vendor licensing db that sync-db interacts
-    with
-  - make go in docker
+  - make a setup script that deploys and sets up the db using docker, then runs the initial sync
+  - maybe add flags for sync?
 * check-spreadsheet.py
   - no new planned features. This portion of the project is likely complete.
 * update-rs-db.py
