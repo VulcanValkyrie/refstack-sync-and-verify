@@ -87,6 +87,9 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
 * 4/6/17
     - removed error which did not allow for the addition of product types to the db. worked on
       troubleshooting errors to do with ticket number querying
+* 4/6/17
+    - add the usage of command line arguments to our update-rs-db script, so that we can pull
+      data from either the standardly-named file "toadd.csv", or supply our own filename
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
