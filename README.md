@@ -90,6 +90,10 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
 * 4/6/17
     - add the usage of command line arguments to our update-rs-db script, so that we can pull
       data from either the standardly-named file "toadd.csv", or supply our own filename
+* 4/11/17-early 4/12/17
+    - add Dockerfile and small changes to make the script work in a docker container, while
+      connecting to a MySQL server on the localhost
+    - not perfect, a few small bugs, but very close to being done
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 

@@ -2,11 +2,11 @@
 import gspread
 import pymysql
 import subprocess
-import urllib2
+import urllib.request
+import urllib.error
 import sys
 from oauth2client.service_account import ServiceAccountCredentials
-reload(sys)
-sys.setdefaultencoding('utf-8')
+from sqlalchemy import *
 
 
 def emptyChk(cursor):
@@ -383,22 +383,31 @@ def processEntry(entry, db, cursor, linect, dbStatus):
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-credentials = ServiceAccountCredentials.from_json_keyfile_name(< Google api credentials json file > , scope)
-docId = <Google spreadsheet document id >
+credentials = ServiceAccountCredentials.from_json_keyfile_name('/src/<google api credentials file>' , scope)
+docId = "<google spreadsheet id>"
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
-spreadsheet = doc.worksheet(< spreadsheet name > )
+spreadsheet = doc.worksheet("OpenStack Powered Worksheet (Barcelona)")
 # connect to MySQL database
-db = pymysql.connect("localhost", < user >, < password > , "refstack_vendor_data")
+db = pymysql.connect("172.17.0.1", "<username>", "<password>")
 cursor = db.cursor()
+exists = cursor.execute("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vendorData'")
+if exists == 0:
+    #print("db 'vendorData' does not exist. creating now")
+    with open("/src/vendorData.sql") as r:
+        for line in r:
+            print(line)
+            cursor.execute(line)
+    cursor.execute("USE vendorData")
+else:
+    #print("using vendorData db")
+    cursor.execute("USE vendorData")
+#print("checking to see if db was empty")
 dbStatus = emptyChk(cursor)
-# get data from spreadsheet
 data = spreadsheet.get_all_values()
-# resize spreadsheet so we can begin our sync
-# <- removed for now until we get basic functionality going
-spreadsheet.resize(1)
+spreadsheet.resize(2)
 spreadsheet.clear()
-# process dataset
+dbstatus = 1
 linect = 0
 for entry in data:
     linect = linect + 1
