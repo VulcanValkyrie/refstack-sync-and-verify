@@ -85,10 +85,10 @@ def linksChk(links, linect):
         try:
             if " " in x:
                 status = False
-            response = urllib2.urlopen(x)
+            response = urllib.request.urlopen(x)
             if response.geturl() == x:
                 status = True
-        except urllib2.HTTPError as err:
+        except urllib2.error.HTTPError as err:
             status = False
     return status
 
@@ -162,7 +162,7 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     else:
         newtype = 0
     if not(dupChk(cursor, "product", prod_name)):
-        cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update, type) VALUES('%s', '%s', '%d','%d', '%d', '%d')" %
+        cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update, _type) VALUES('%s', '%s', '%d','%d', '%d', '%d')" %
                        (prod_name, reported_rel, federated, company_id, upd_status, newtype))
     db.commit()
     product_id = getProductId(cursor, prod_name)
@@ -230,7 +230,7 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
         result_id = result_id[0]
     # lastly, update the license table
     cursor.execute(
-        "SELECT link FROM license WHERE result_id ='%s'" % (result_id))
+        "SELECT _link FROM license WHERE result_id ='%s'" % (result_id))
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
@@ -238,7 +238,7 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
             cursor.execute("UPDATE license SET link = '%s' WHERE product_id = '%s'" % (
                 lic_link, product_id))
     cursor.execute(
-        "SELECT date FROM license WHERE result_id ='%s'" % (result_id))
+        "SELECT _date FROM license WHERE result_id ='%s'" % (result_id))
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
@@ -334,6 +334,7 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         passed_rels = []
         reported_rels = []
         # split entries
+        print(prod_name)
         guidelines, components, passed_rels, reported_rels = splitEntry(
             guideline, component, passed_rel, reported_rel)
         # check links
@@ -383,31 +384,37 @@ def processEntry(entry, db, cursor, linect, dbStatus):
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-credentials = ServiceAccountCredentials.from_json_keyfile_name('/src/<google api credentials file>' , scope)
-docId = "<google spreadsheet id>"
+credentials = ServiceAccountCredentials.from_json_keyfile_name('/src/google api credentials json file' , scope)
+docId = "google spreadsheet doc id"
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
 spreadsheet = doc.worksheet("OpenStack Powered Worksheet (Barcelona)")
 # connect to MySQL database
-db = pymysql.connect("172.17.0.1", "<username>", "<password>")
+print("connecting to mysql container")
+db = pymysql.connect("<mysql docker container ip>", "<user>", "<password>")
 cursor = db.cursor()
 exists = cursor.execute("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vendorData'")
 if exists == 0:
-    #print("db 'vendorData' does not exist. creating now")
+    print("db 'vendorData' does not exist. creating now")
+    #buildDb()
     with open("/src/vendorData.sql") as r:
         for line in r:
-            print(line)
             cursor.execute(line)
-    cursor.execute("USE vendorData")
+    #cursor.execute("USE vendorData")
 else:
-    #print("using vendorData db")
+    print("using vendorData db")
     cursor.execute("USE vendorData")
 #print("checking to see if db was empty")
 dbStatus = emptyChk(cursor)
+# get data from spreadsheet
 data = spreadsheet.get_all_values()
+# resize spreadsheet so we can begin our sync
+# <- removed for now until we get basic functionality going
+print("resizing spreadsheet")
 spreadsheet.resize(2)
 spreadsheet.clear()
-dbstatus = 1
+# process dataset
+#dbStatus = 1
 linect = 0
 for entry in data:
     linect = linect + 1
