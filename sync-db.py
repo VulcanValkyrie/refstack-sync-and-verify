@@ -142,7 +142,7 @@ def dupChk(cursor, table, specifier):
     return True
 
 
-def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
+def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, result_links,
               federated, _type, ticket_link, lic_date, upd_status, lic_link, cursor, db):
     federated = fedChk(federated)
     upd_status = updateLicenseChk(upd_status)
@@ -162,8 +162,8 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     else:
         newtype = 0
     if not(dupChk(cursor, "product", prod_name)):
-        cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update, _type) VALUES('%s', '%s', '%d','%d', '%d', '%d')" %
-                       (prod_name, reported_rel, federated, company_id, upd_status, newtype))
+        cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update, _type) VALUES('%s', '%s', '%d','%d', '%d', '%d')"
+                       % (prod_name, reported_rel, federated, company_id, upd_status, newtype))
     db.commit()
     product_id = getProductId(cursor, prod_name)
     if product_id is None:
@@ -172,8 +172,21 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     tickets = splitTiks(ticket_link)
     for link in tickets:
         if not dupChk(cursor, "ticket", ticket_link):
-            cursor.execute("INSERT INTO ticket(tik_link, product_id) VALUES('%s','%s')" % (
-                link, product_id))
+            if ticket_link is not None:
+                _id = link.split("/")[-1]
+            else:
+                _id = "N/A"
+            cursor.execute("INSERT INTO ticket(id, tik_link, product_id) VALUES('%s', '%s','%s')" % (
+                _id, link, product_id))
+    db.commit()
+    if lic_link is not None and lic_link:
+        if lic_date is None:
+            lic_date = "no date on file"
+        for link in result_links:
+            if link:
+                result_id = link.split("/")[-1]
+            cursor.execute("INSERT INTO license(result_id, _link, _type, _date) VALUES('%s', '%s', '%d', '%s')" %
+                           (result_id, lic_link, newtype, lic_date))
     db.commit()
 
 
@@ -240,7 +253,7 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     cursor.execute(
         "SELECT _date FROM license WHERE result_id ='%s'" % (result_id))
     to_chk = cursor.fetchone()
-    if to_chk is not None:
+    if to_chk is not None and dupChk(cursor, "license", specifier):
         to_chk = to_chk[0]
         if lic_date not in to_chk:
             cursor.execute("UPDATE license SET link = '%s' WHERE id = '%s'" % (
@@ -289,9 +302,17 @@ def get_entry(line):
 
 
 def pushResult(link, tik_id, guideline, product_id):
+    if tik_id is None:
+        tik_id = 0
+    if product_id is None:
+        product_id = 0
     if not dupChk(cursor, "result", link):
-        cursor.execute("INSERT INTO result(refstack, tik_id, guideline, _product_id_) VALUES('%s', '%d', '%s', '%d')" % (
-            link, tik_id, guideline, product_id))
+        if link is not None:
+            _id = link.split("/")[-1]
+        else:
+            _id = "N/A"
+        cursor.execute("INSERT INTO result(id, refstack, tik_id, guideline, _product_id_) VALUES('%s', '%s', '%s', '%s', '%d')" % (
+            _id, link, tik_id, guideline, product_id))
 
 
 def pushResults(api_links, tik_id, guideline, product_id):
@@ -304,7 +325,6 @@ def splitContact(contact):
     entry = []
     names = []
     emails = []
-    # print contact
     fields = contact.replace("\n", " ").replace("\r", " ").split(">")
     for x in fields:
         entry = x.split("<")
@@ -327,14 +347,13 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         reported_rel, passed_rel, federated, refstack_link, ticket_link,\
         marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public = get_entry(
             entry)
-    if company_name and prod_name and company_name is not "" and prod_name is not "" and linect != 2:
+    if company_name and prod_name and company_name is not "" and "Product" not in prod_name:
         api_links = []
         guidelines = []
         components = []
         passed_rels = []
         reported_rels = []
         # split entries
-        print(prod_name)
         guidelines, components, passed_rels, reported_rels = splitEntry(
             guideline, component, passed_rel, reported_rel)
         # check links
@@ -361,12 +380,12 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
             # update spreadsheet
             spreadsheet.append_row([company_name, prod_name, _type, region,
-                                    w, x, y, z, federated, refstack_link,
+                                    w, x, y, api_links, z, federated, refstack_link,
                                     ticket_link, marketp_link, lic_date,
                                     upd_status, contact, notes, lic_link,
                                     active, public])
             if dbStatus or newChk(company_name, prod_name, cursor) and "Company" not in company_name:
-                pushEntry(company_name, prod_name, w, z, y, federated, _type,
+                pushEntry(company_name, prod_name, w, z, y, federated, z, _type,
                           ticket_link, lic_date, upd_status, lic_link, cursor, db)
             else:
                 updateEntry(company_name, prod_name, w, z, y, federated, refstack_link, ticket_link,
@@ -384,19 +403,22 @@ def processEntry(entry, db, cursor, linect, dbStatus):
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
-credentials = ServiceAccountCredentials.from_json_keyfile_name('/src/google api credentials json file' , scope)
-docId = "google spreadsheet doc id"
+credentials = ServiceAccountCredentials.from_json_keyfile_name(
+    '/src/gcreds.json', scope)
+docId = "1mcX9H2FHrSkHHyxQ2Nz3WuQdAE9TGkP0mvaU1WOfzsA"
+print("authing using gcreds")
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
 spreadsheet = doc.worksheet("OpenStack Powered Worksheet (Barcelona)")
 # connect to MySQL database
 print("connecting to mysql container")
-db = pymysql.connect("<mysql docker container ip>", "<user>", "<password>")
+db = pymysql.connect("172.17.0.2", "root", "password")  # , "vendorData")
 cursor = db.cursor()
-exists = cursor.execute("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vendorData'")
+exists = cursor.execute(
+    "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vendorData'")
 if exists == 0:
     print("db 'vendorData' does not exist. creating now")
-    #buildDb()
+    # buildDb()
     with open("/src/vendorData.sql") as r:
         for line in r:
             cursor.execute(line)
