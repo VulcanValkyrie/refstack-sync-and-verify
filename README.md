@@ -94,6 +94,10 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
     - add Dockerfile and small changes to make the script work in a docker container, while
       connecting to a MySQL server on the localhost
     - not perfect, a few small bugs, but very close to being done
+* 4/17/17- early 4/18/17
+    - remove flaw that led very incomplete entries not to be added
+    - added a -s flag for specifying the server of the db you are updating using update-rs-db.py
+    - removed all direct queries to the refstack db in update-rs-db.py
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 

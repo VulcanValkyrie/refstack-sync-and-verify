@@ -347,7 +347,7 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         reported_rel, passed_rel, federated, refstack_link, ticket_link,\
         marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public = get_entry(
             entry)
-    if company_name and prod_name and company_name is not "" and "Product" not in prod_name:
+    if company_name and company_name is not "" and "DISTRIBUTIONS" not in company_name and "PRIVATE" not in prod_name and "PUBLIC" not in prod_name and "LEADS" not in company_name and "IN PROGRESS" not in prod_name and "HOSTED" not in company_name and "PUBLIC" not in company_name and "Product" not in prod_name:
         api_links = []
         guidelines = []
         components = []
@@ -380,7 +380,7 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
             # update spreadsheet
             spreadsheet.append_row([company_name, prod_name, _type, region,
-                                    w, x, y, api_links, z, federated, refstack_link,
+                                    w, x, y, z, federated, refstack_link,
                                     ticket_link, marketp_link, lic_date,
                                     upd_status, contact, notes, lic_link,
                                     active, public])
@@ -397,47 +397,49 @@ def processEntry(entry, db, cursor, linect, dbStatus):
             names = []
             emails = []
             names, emails = splitContact(contact)
-            pushContacts(names, emails, company_id)
-            pushResults(api_links, tik_id, guideline, product_id)
+            try:
+                pushContacts(names, emails, company_id)
+            except Exception:
+                print(
+                    "Could not update the contacts associated with the project " + prod_name)
+            try:
+                pushResults(api_links, tik_id, guideline, product_id)
+            except Exception:
+                print(
+                    "Could not update the results associated with the project " + prod_name)
 
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
-    '/src/gcreds.json', scope)
-docId = "1mcX9H2FHrSkHHyxQ2Nz3WuQdAE9TGkP0mvaU1WOfzsA"
-print("authing using gcreds")
+    '/src/<google api json credentials file>', scope)
+docId = "<Google spreadsheet document ID>"
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
-spreadsheet = doc.worksheet("OpenStack Powered Worksheet (Barcelona)")
+spreadsheet = doc.worksheet("<spreadsheet name>")
 # connect to MySQL database
 print("connecting to mysql container")
-db = pymysql.connect("172.17.0.2", "root", "password")  # , "vendorData")
+db = pymysql.connect("<MySQL Docker container IP>", "<user>", "<password>")
 cursor = db.cursor()
 exists = cursor.execute(
     "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vendorData'")
 if exists == 0:
     print("db 'vendorData' does not exist. creating now")
-    # buildDb()
     with open("/src/vendorData.sql") as r:
         for line in r:
             cursor.execute(line)
-    #cursor.execute("USE vendorData")
 else:
-    print("using vendorData db")
     cursor.execute("USE vendorData")
-#print("checking to see if db was empty")
 dbStatus = emptyChk(cursor)
 # get data from spreadsheet
 data = spreadsheet.get_all_values()
-# resize spreadsheet so we can begin our sync
-# <- removed for now until we get basic functionality going
 print("resizing spreadsheet")
 spreadsheet.resize(2)
 spreadsheet.clear()
-# process dataset
-#dbStatus = 1
 linect = 0
 for entry in data:
     linect = linect + 1
-    processEntry(entry, db, cursor, linect, dbStatus)
+    try:
+        processEntry(entry, db, cursor, linect, dbStatus)
+    except Exception:
+        print("an error occurred during the parsing of an entry; the results of this run may be incomplete")
