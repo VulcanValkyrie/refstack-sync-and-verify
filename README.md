@@ -98,6 +98,13 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
     - remove flaw that led very incomplete entries not to be added
     - added a -s flag for specifying the server of the db you are updating using update-rs-db.py
     - removed all direct queries to the refstack db in update-rs-db.py
+* 4/21/17
+    - sync-db.py is no longer using docker to run, but I have left in the Dockerfile for the sake
+      of having it at my disposal if I want to run this in a container again.
+    - I have created a subdirectory specifically for all scripts related to the internal db rather
+      than the refstack db or the speadsheet-fixing script
+    - started work on a CRUD api for the internal db. More work has been done on this, but the rest
+      is not yet functional enough for a push. It shouldn't take long to get more done
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
@@ -107,9 +114,6 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
   - adds new records for product pairs that have been recently added to the spreadsheet
   - checks links and flags test results whose links are broken / nonexistent
   - pushes entries with updated flags and comments back to the spreadsheet.
-* build-db.py
-  - creates mysql db using sql alchemy for usage in the sync-db script
-  - still buggy, running into credentials-based quirks
 * check-spreadsheet.py
   - checks links
   - reformats lines with multiple entries for the sake of easier updatability
@@ -126,13 +130,12 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
     * if all info is valid, change test status to verified
   - HAS BEEN SUBMITTED AS A REFSTACK PATCH FOR FURTHER TESTING. you can view this patch at
     https://review.openstack.org/#/c/452518/
-
+* read.py & delete.py
+  - the beginnings of a CRUD api for the internal vendor data db. Obviously not complete or unified,
+    but base functionality is working
+ 
 ////////////////////////////////////////Coming Soon ///////////////////////////////////////////////
 
-* sync-db.py
-  - planning to refactor for increased simplicity / less code replication(IN PROGRESS)
-  - make a setup script that deploys and sets up the db using docker, then runs the initial sync
-  - maybe add flags for sync?
 * check-spreadsheet.py
   - no new planned features. This portion of the project is likely complete.
 * update-rs-db.py

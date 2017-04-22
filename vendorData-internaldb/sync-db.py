@@ -52,14 +52,11 @@ def getProductId(cursor, product_name):
     return product_id
 
 
-def getTikId(ticket_link, product_id):
-    cursor.execute("SELECT id FROM ticket WHERE tik_link = '%s' AND product_id= '%s'" % (
-        ticket_link, product_id))
-    tik_id = cursor.fetchone()
-    if tik_id is not None:
-        tik_id = tik_id[0]
+def getTikId(ticket_link):
+    if ticket_link and ticket_link != "":
+        tik_id = ticket_link.split("/")[-1]
     else:
-        tik_id = 0
+        tik_id = "N/A"
     return tik_id
 
 
@@ -117,36 +114,23 @@ def splitTiks(ticket_link):
     return links
 
 
-def dupChk(cursor, table, specifier):
-    if "company" in table:
-        cursor.execute(
-            "SELECT name, COUNT(*) FROM company WHERE name = '%s' GROUP BY name" % (specifier))
-    if "contact" in table:
-        cursor.execute(
-            "SELECT email, COUNT(*) FROM contact WHERE email = '%s' GROUP BY email" % (specifier))
-    if "product" in table:
-        cursor.execute(
-            "SELECT name, COUNT(*) FROM product WHERE name = '%s' GROUP BY name" % (specifier))
-    if "ticket" in table:
-        cursor.execute(
-            "SELECT tik_link, COUNT(*) FROM ticket WHERE tik_link = '%s' GROUP BY tik_link" % (specifier))
-    if "result" in table:
-        cursor.execute(
-            "SELECT refstack, COUNT(*) FROM result WHERE refstack = '%s' GROUP BY refstack" % (specifier))
-    if "license" in table:
-        cursor.execute(
-            "SELECT result_id, COUNT(*) FROM license WHERE result_id = '%s' GROUP BY result_id" % (specifier))
-    row_count = cursor.rowcount
-    if row_count == 0:
+def dupChk(table, keytype, keyval, cursor):
+    query = "SELECT COUNT(*) FROM %s WHERE %s = '%s'" % (table,
+                                                         keytype, keyval)
+    cursor.execute(query)
+    rowcount = cursor.rowcount
+    if rowcount != 0:
         return False
-    return True
+    else:
+        return True
 
 
 def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, result_links,
               federated, _type, ticket_link, lic_date, upd_status, lic_link, cursor, db):
     federated = fedChk(federated)
+    print("pushing product: " + prod_name)
     upd_status = updateLicenseChk(upd_status)
-    if not dupChk(cursor, "company", company_name):
+    if not dupChk("company", "name", company_name, cursor):
         cursor.execute("INSERT INTO company(NAME) VALUES('%s')" %
                        (company_name))
     db.commit()
@@ -161,7 +145,7 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, resu
         newtype = 1
     else:
         newtype = 0
-    if not(dupChk(cursor, "product", prod_name)):
+    if not(dupChk("product", "name", prod_name, cursor)):
         cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update, _type) VALUES('%s', '%s', '%d','%d', '%d', '%d')"
                        % (prod_name, reported_rel, federated, company_id, upd_status, newtype))
     db.commit()
@@ -171,9 +155,10 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, resu
     tickets = []
     tickets = splitTiks(ticket_link)
     for link in tickets:
-        if not dupChk(cursor, "ticket", ticket_link):
+        if not dupChk("ticket", "tik_link", ticket_link, cursor):
             if ticket_link is not None:
                 _id = link.split("/")[-1]
+                print("ticket link: " + _id)
             else:
                 _id = "N/A"
             cursor.execute("INSERT INTO ticket(id, tik_link, product_id) VALUES('%s', '%s','%s')" % (
@@ -192,7 +177,7 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, resu
 
 def pushContacts(names, emails, company_id):
     for x, y in zip(names, emails):
-        if not(dupChk(cursor, "contact", str(x + " <" + y + ">"))) and "no name on record" not in x and x != '' and x != " ":
+        if not(dupChk("contact", "email", str("<" + y + ">"), cursor)) and "no name on record" not in x and x != '' and x != " ":
             cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
                 x, y, company_id))
 
@@ -241,6 +226,7 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     result_id = cursor.fetchone()
     if result_id is not None:
         result_id = result_id[0]
+        # now update the ticket number in the results field
     # lastly, update the license table
     cursor.execute(
         "SELECT _link FROM license WHERE result_id ='%s'" % (result_id))
@@ -253,7 +239,7 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     cursor.execute(
         "SELECT _date FROM license WHERE result_id ='%s'" % (result_id))
     to_chk = cursor.fetchone()
-    if to_chk is not None and dupChk(cursor, "license", specifier):
+    if to_chk is not None and dupChk("license", "result_id", result_id, cursor):
         to_chk = to_chk[0]
         if lic_date not in to_chk:
             cursor.execute("UPDATE license SET link = '%s' WHERE id = '%s'" % (
@@ -306,7 +292,7 @@ def pushResult(link, tik_id, guideline, product_id):
         tik_id = 0
     if product_id is None:
         product_id = 0
-    if not dupChk(cursor, "result", link):
+    if not dupChk("result", "refstack", link, cursor):
         if link is not None:
             _id = link.split("/")[-1]
         else:
@@ -388,45 +374,39 @@ def processEntry(entry, db, cursor, linect, dbStatus):
                 pushEntry(company_name, prod_name, w, z, y, federated, z, _type,
                           ticket_link, lic_date, upd_status, lic_link, cursor, db)
             else:
-                updateEntry(company_name, prod_name, w, z, y, federated, refstack_link, ticket_link,
+                updateEntry(company_name, prod_name, w, z, y, federated, api_links, ticket_link,
                             lic_date, lic_link, cursor, db)
         if pushStatus:  # we do this later to ensure that we will have the appropriate product_id and ticket_id in the db
             product_id = getProductId(cursor, prod_name)
-            tik_id = getTikId(ticket_link, product_id)
+            tik_id = getTikId(ticket_link)
             company_id = getCompanyId(cursor, company_name)
             names = []
             emails = []
             names, emails = splitContact(contact)
-            try:
-                pushContacts(names, emails, company_id)
-            except Exception:
-                print(
-                    "Could not update the contacts associated with the project " + prod_name)
-            try:
-                pushResults(api_links, tik_id, guideline, product_id)
-            except Exception:
-                print(
-                    "Could not update the results associated with the project " + prod_name)
+            pushContacts(names, emails, company_id)
+            pushResults(api_links, tik_id, guideline, product_id)
+            db.commit()
 
 
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
-    '/src/<google api json credentials file>', scope)
-docId = "<Google spreadsheet document ID>"
+    '<google api credentials json file>', scope)
+docId = "<Google Spreadsheet document >"
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
-spreadsheet = doc.worksheet("<spreadsheet name>")
+spreadsheet = doc.worksheet("OpenStack Powered Worksheet (Barcelona)")
 # connect to MySQL database
 print("connecting to mysql container")
-db = pymysql.connect("<MySQL Docker container IP>", "<user>", "<password>")
+db = pymysql.connect("<MySQL db server", "<user>", "<password>")
 cursor = db.cursor()
 exists = cursor.execute(
     "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vendorData'")
 if exists == 0:
     print("db 'vendorData' does not exist. creating now")
-    with open("/src/vendorData.sql") as r:
+    with open("vendorData.sql") as r:
         for line in r:
+            # print(line)
             cursor.execute(line)
 else:
     cursor.execute("USE vendorData")
@@ -439,7 +419,4 @@ spreadsheet.clear()
 linect = 0
 for entry in data:
     linect = linect + 1
-    try:
-        processEntry(entry, db, cursor, linect, dbStatus)
-    except Exception:
-        print("an error occurred during the parsing of an entry; the results of this run may be incomplete")
+    processEntry(entry, db, cursor, linect, dbStatus)
