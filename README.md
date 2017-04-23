@@ -7,117 +7,17 @@ to access google spread via their native auth. real docs to come
 just getting
 the basics set up.
 
-note: for the time being, I am disregarding the line length requirement of
-pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
-
-//////////////////////////////////////// Commit History & Progress ////////////////////////////////////////////
-
-* 3/10/17:
-    - Initial commit. Much to clean up, much to streamline. More soon
-        current state: parses and loads spreadsheet into db with no duplicate
-        entries.
-    - Cleaned up pep - 8 formatting, minor item ID matching debug
-* 3/11/17
-    - refactor for more sensible code flow, implemented functionality
-        to update an existing database.
-* 3/12/17
-    - accounted for the databases' returning None in place of a tuple.
-* 3/13/17
-    - implemented check that allows us to push to the database entries that
-        did not already exist.
-* 3/14/17
-    - implemented a check to make sure a result's link exists / is
-        functional
-    - implemented a "flag result" function to flag results with broken links for
-        review
-    - began refactor of existing code. Separated out the functionality of querying
-        for company and product id, as well as converting federated and license_update
-        fields from the human - readable string format to the tinyint format used by
-        mysql to represent booleans
-* 3/15/17 - early 3/16/17
-    - added a script which reformats a test results spreadsheet for greater
-        readability, as well as checking links to make sure they are all valid
-* 3/17/17
-    - debugged linkchecking functionality, got the file to write to csv, tried to get
-        update file upload functionality working
-* 3/18/17
-    - tried to debug csv upload, then when it turned out that that gspread functionality
-        is either broken or deprecated, updated script to wipe the spreadsheet and readd
-        the newly updated entries as they are checked. this proved to be successful
-* 3/19/17
-    - updated script to toggle the update flag, as well as adding a note that tells the
-        reader to check the results link, given that it is not working
-* 3/20/17
-    - cleaned up check - spreadsheet script for push to refstack repo for further testing
-* 3/21/17
-    - started refactor of sync - db script for better handling of edge cases and greater
-        processing speed
-* 3/24/17
-    - removed header lines from input, debugged ticket data entry. still buggy. This is
-        still buggy
-        when I search for the appropriate id number, the search returns 0.
-* 3/25/17
-    - simplified code through reorganization. simplifying in an attempt to reduce edge
-        cases and therefore room for db addition error. this is a result of anomalies in
-        refstack result addition process
-* 3/27/17
-    - eliminated bug which caused the script to fail in the endeavor of pushing very
-        very incomplete entries back into the database.
-* 3/28/17-3/31/17
-    - created new (but similar) script for the internal refstack db specifically that checks to
-      see if there is data in the internal refstack server that the script is being run against,
-      then if that data exists, verifies the validity of the result link, updates a few fields
-      in the internal db, and then updates the "verified" field in the "test" field
-    - this can likely be expanded (if needed) to check whether the product has passed testing for
-      the specified guideline
-* 4/2/17
-    - created preliminary version of the mechanism which creates the db. I plan on using this in
-      the sync-db script to create the db if it is not already there
-* 4/3/17
-    - elimated typo which kept ZenDesk tickets from being added separately into the database
-    - eliminated typo which led to the product_id fields in both the result and the ticket tables
-      always equaling zero due to failed queries
-    - removed newlines in company name field, leading to more formatting-congruency within the
-      company table
-* 4/4/17
-    - worked on removing anomalies from the contact addition process. Still has a few minor quirks
-* 4/5/17
-    - contact addition process remedied; the phenomena which caused the header row to be added
-      into the db has been fixed as well.
-* 4/6/17
-    - removed error which did not allow for the addition of product types to the db. worked on
-      troubleshooting errors to do with ticket number querying
-* 4/6/17
-    - add the usage of command line arguments to our update-rs-db script, so that we can pull
-      data from either the standardly-named file "toadd.csv", or supply our own filename
-* 4/11/17-early 4/12/17
-    - add Dockerfile and small changes to make the script work in a docker container, while
-      connecting to a MySQL server on the localhost
-    - not perfect, a few small bugs, but very close to being done
-* 4/17/17- early 4/18/17
-    - remove flaw that led very incomplete entries not to be added
-    - added a -s flag for specifying the server of the db you are updating using update-rs-db.py
-    - removed all direct queries to the refstack db in update-rs-db.py
-* 4/21/17
-    - sync-db.py is no longer using docker to run, but I have left in the Dockerfile for the sake
-      of having it at my disposal if I want to run this in a container again.
-    - I have created a subdirectory specifically for all scripts related to the internal db rather
-      than the refstack db or the speadsheet-fixing script
-    - started work on a CRUD api for the internal db. More work has been done on this, but the rest
-      is not yet functional enough for a push. It shouldn't take long to get more done
-* 4/22/17
-    - added create-company.py, another building block for the api. Now that I've got the create
-      function figured out, the rest should go more quickly. Also: fixed minor error in the dupChk
-      function
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
-* sync-db.py
-  - populates db if db does not exist
+* vendorDataDb/sync-db.py
+  - creates and populates db if db does not exist
   - updates db based on existing records that have been changed
   - adds new records for product pairs that have been recently added to the spreadsheet
   - checks links and flags test results whose links are broken / nonexistent
   - pushes entries with updated flags and comments back to the spreadsheet.
+vendorDatadb/vendorData.sql
+  - database schema
 * check-spreadsheet.py
   - checks links
   - reformats lines with multiple entries for the sake of easier updatability
@@ -134,14 +34,7 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
     * if all info is valid, change test status to verified
   - HAS BEEN SUBMITTED AS A REFSTACK PATCH FOR FURTHER TESTING. you can view this patch at
     https://review.openstack.org/#/c/452518/
-* contents of dbApi dir:
+* contents of vendorDataDb/api dir:
   - the beginnings of a CRUD api for the internal vendor data db. Obviously not complete or unified,
     but base functionality is working
  
-////////////////////////////////////////Coming Soon ///////////////////////////////////////////////
-
-* check-spreadsheet.py
-  - no new planned features. This portion of the project is likely complete.
-* update-rs-db.py
-  - ensure that all features are working correctly.
-  - perhaps verify that the result has passed testing for its associated guideline?
