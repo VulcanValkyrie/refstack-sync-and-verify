@@ -10,9 +10,9 @@ def create_contact(cursor, db, name, email):
         query = "INSERT INTO company(name, email) VALUES('%s', '%s')" % (
             name, email)
         cursor.execute(query)
+        db.commit()
     else:
         print(name + "already exists within the database.")
-
 
 def process_flags(results):
     if results.name is None or results.name is " ":
