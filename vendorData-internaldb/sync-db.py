@@ -115,20 +115,20 @@ def splitTiks(ticket_link):
 
 
 def dupChk(table, keytype, keyval, cursor):
-    query = "SELECT COUNT(*) FROM %s WHERE %s = '%s'" % (table,
-                                                         keytype, keyval)
+    query = "SELECT EXISTS(SELECT 1 FROM %s WHERE %s = '%s')" % (
+        table, keytype, keyval)
     cursor.execute(query)
-    rowcount = cursor.rowcount
+    rowcount = cursor.fetchall()
+    rowcount = rowcount[0][0]
     if rowcount != 0:
-        return False
-    else:
         return True
+    else:
+        return False
 
 
 def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, result_links,
               federated, _type, ticket_link, lic_date, upd_status, lic_link, cursor, db):
     federated = fedChk(federated)
-    print("pushing product: " + prod_name)
     upd_status = updateLicenseChk(upd_status)
     if not dupChk("company", "name", company_name, cursor):
         cursor.execute("INSERT INTO company(NAME) VALUES('%s')" %
@@ -145,7 +145,7 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, resu
         newtype = 1
     else:
         newtype = 0
-    if not(dupChk("product", "name", prod_name, cursor)):
+    if not dupChk("product", "name", prod_name, cursor):
         cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update, _type) VALUES('%s', '%s', '%d','%d', '%d', '%d')"
                        % (prod_name, reported_rel, federated, company_id, upd_status, newtype))
     db.commit()
@@ -158,7 +158,6 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, resu
         if not dupChk("ticket", "tik_link", ticket_link, cursor):
             if ticket_link is not None:
                 _id = link.split("/")[-1]
-                print("ticket link: " + _id)
             else:
                 _id = "N/A"
             cursor.execute("INSERT INTO ticket(id, tik_link, product_id) VALUES('%s', '%s','%s')" % (
@@ -219,15 +218,11 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     if to_chk != federated:
         cursor.execute("UPDATE product SET federated ='%s' WHERE company_id = '%s' and name = '%s'" % (
             federated, company_id, prod_name))
-    # now update the ticket table
-    # get a result id
     cursor.execute(
         "SELECT id FROM result WHERE _product_id_ ='%s'" % (product_id))
     result_id = cursor.fetchone()
     if result_id is not None:
         result_id = result_id[0]
-        # now update the ticket number in the results field
-    # lastly, update the license table
     cursor.execute(
         "SELECT _link FROM license WHERE result_id ='%s'" % (result_id))
     to_chk = cursor.fetchone()
@@ -316,6 +311,8 @@ def splitContact(contact):
         entry = x.split("<")
         try:
             name = entry[0]
+            if ", " in name:
+                name = name.split(", ")[1]
         except Exception:
             name = "no name on record"
         names.append(name)
@@ -342,11 +339,8 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         # split entries
         guidelines, components, passed_rels, reported_rels = splitEntry(
             guideline, component, passed_rel, reported_rel)
-        # check links
         pushStatus = True
         api_links = fixLink(refstack_link)
-        #print("link list: ")
-        # print(api_links)
         if not linksChk(api_links, linect):
             print("The link associated with the product " + prod_name + " and the guideline " + guideline +
                   " is broken, or does not exist. please check and update this field in the spreadsheet")
@@ -391,14 +385,14 @@ def processEntry(entry, db, cursor, linect, dbStatus):
 # connect to spreadsheet
 scope = ['https://spreadsheets.google.com/feeds']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
-    '<google api credentials json file>', scope)
-docId = "<Google Spreadsheet document >"
+    '<google credentials json file>', scope)
+docId = "<Google Spreadsheet Document ID>"
 client = gspread.authorize(credentials)
 doc = client.open_by_key(docId)
 spreadsheet = doc.worksheet("OpenStack Powered Worksheet (Barcelona)")
 # connect to MySQL database
-print("connecting to mysql container")
-db = pymysql.connect("<MySQL db server", "<user>", "<password>")
+print("connecting to MySQL")
+db = pymysql.connect("<MySQL db server>", "<user>", "<password>")
 cursor = db.cursor()
 exists = cursor.execute(
     "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vendorData'")
@@ -406,7 +400,6 @@ if exists == 0:
     print("db 'vendorData' does not exist. creating now")
     with open("vendorData.sql") as r:
         for line in r:
-            # print(line)
             cursor.execute(line)
 else:
     cursor.execute("USE vendorData")

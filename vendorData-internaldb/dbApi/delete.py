@@ -39,7 +39,8 @@ def process_flags(results):
 
 
 def main():
-    db = pymysql.connect("127.0.0.1", "root", "password", "refstack_status")
+    db = pymysql.connect("<MySQL db server", "<user>",
+                         "<password>", "vendorData")
     cursor = db.cursor()
     parser = argparse.ArgumentParser("delete an entry from the vendordata DB")
     parser.add_argument("-t", "--table", type=str, action="store",
