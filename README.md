@@ -105,6 +105,10 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
       than the refstack db or the speadsheet-fixing script
     - started work on a CRUD api for the internal db. More work has been done on this, but the rest
       is not yet functional enough for a push. It shouldn't take long to get more done
+* 4/22/17
+    - added create-company.py, another building block for the api. Now that I've got the create
+      function figured out, the rest should go more quickly. Also: fixed minor error in the dupChk
+      function
 
 //////////////////////////////////// Current Status & Functionality /////////////////////////////
 
@@ -130,7 +134,7 @@ pep - 8. I will remedy that soon, but for the time being, I am leaving it as is
     * if all info is valid, change test status to verified
   - HAS BEEN SUBMITTED AS A REFSTACK PATCH FOR FURTHER TESTING. you can view this patch at
     https://review.openstack.org/#/c/452518/
-* read.py & delete.py
+* contents of dbApi dir:
   - the beginnings of a CRUD api for the internal vendor data db. Obviously not complete or unified,
     but base functionality is working
  
