@@ -1,7 +1,7 @@
 #!/usr/bin/python3.5
 import pymysql
 import argparse
-
+import create
 
 def read(table, keytype, keyval, cursor):
     query = "SELECT * FROM %s WHERE %s  = '%s'" % (table, keytype, keyval)
@@ -42,10 +42,7 @@ def process_flags(results):
 
 
 def main():
-    db = pymysql.connect("<MySQL db server", "<user>",
-                         "<password>", "vendorData")
-    cursor = db.cursor()
-    parser = argparse.ArgumentParser("read an entry from the vendorData db")
+    db, cursor, parser = create.connect()
     parser.add_argument("-t", "--table", type=str, action="store",
                         required=True, help="table to search for the desired data")
     parser.add_argument("-kt", "--keytype", type=str, action="store",
