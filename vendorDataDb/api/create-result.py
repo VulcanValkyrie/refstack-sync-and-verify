@@ -2,7 +2,7 @@
 import pymysql
 import argparse
 import sys
-import create
+import api
 
 
 def process_flags(cursor, results):
@@ -10,7 +10,7 @@ def process_flags(cursor, results):
         print("No RefStack result link provided. Exiting.")
         sys.exit()
     else:
-        if create.linkChk(results.result - link):
+        if api.linkChk(results.result - link):
             resultlink = results.result - link
             _id = resultlink.split(",")[-1]
         else:
@@ -21,7 +21,7 @@ def process_flags(cursor, results):
         sys.exit()
     else:
         productname = results.result - link
-        productId = create.getProductId(cursor, name)
+        productId = api.getProductId(cursor, name)
     if not results.ticket - link or results.ticket - link is " ":
         tikID = "NULL"
     else:
@@ -45,7 +45,7 @@ def create_result(cursor, db, _id, result, refstack, productId, tikId, guideline
 
 
 def main():
-    db, cursor, parser = create.connect)
+    db, cursor, parser = api.connect)
     parser.add_argument("-r", "--result-link", type = str,
                         action = "store", required = True, help = "Refstack result link")
     parser.add_argument("-p", "--product-name", type = str, action = "store",

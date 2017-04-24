@@ -1,7 +1,7 @@
 #!/usr/bin/python3.5
 import pymysql
 import argparse
-import create
+import api
 
 def delete(table, keytype, keyval, cursor, db):
     query = "SELECT * from %s WHERE %s = '%s'" % (table, keytype, keyval)
@@ -39,7 +39,7 @@ def process_flags(results):
 
 
 def main():
-    db, cursor, parser = connect()
+    db, cursor, parser = api.connect()
     parser.add_argument("-t", "--table", type=str, action="store",
                         required=True, help="table to search for the desired data")
     parser.add_argument("-kt", "--keytype", type=str, action="store",

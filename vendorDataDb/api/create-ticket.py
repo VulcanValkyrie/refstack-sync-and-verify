@@ -2,7 +2,7 @@
 import pymysql
 import argparse
 import sys
-import create
+import api
 
 
 def process_flags(cursor, results):
@@ -32,7 +32,7 @@ def create_ticket(cursor, db, tik_link, tikId, productId):
 
 
 def main():
-    db, cursor, parser = create.connect()
+    db, cursor, parser = api.connect()
     parser.add_argument("-t", "--ticket", type=str,
                         action="store", required=True, help="Ticket Link")
     parser.add_argument("-p", "--product-name", type=str,

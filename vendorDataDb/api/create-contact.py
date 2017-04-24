@@ -2,7 +2,7 @@
 import argparse
 import pymysql
 import sys
-import create
+import api
 
 
 def create_contact(cursor, db, name, email):
@@ -28,7 +28,7 @@ def process_flags(results):
 
 
 def main():
-    db, cursor, parser = create.connect()
+    db, cursor, parser = api.connect()
     parser.add_argument("-n", "--name", type=str,
                         action="store", required=True, help="Contact Name")
     parser.add_argument("-m", "--mail", type=str,

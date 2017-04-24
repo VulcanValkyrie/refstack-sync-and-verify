@@ -2,7 +2,7 @@
 import pymysql
 import argparse
 import sys
-import create
+import api
 
 
 def create_company(cursor, db, company_name):
@@ -25,7 +25,7 @@ def process_flage(results):
 
 
 def main():
-    db, cursor, parser = create.connect()
+    db, cursor, parser = api.connect()
     parser.add_argument("-n", "--name", type=str,
                         action="store", required=True, help="Company Name")
     results = parser.parse_args()

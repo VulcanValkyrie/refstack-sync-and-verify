@@ -2,7 +2,7 @@
 import argparse
 import pymysql
 import sys
-import create
+import api
 
 
 def process_flags(results):
@@ -27,7 +27,7 @@ def process_flags(results):
         print("No valid company name provided. Exiting process")
         sys.exit()
     else:
-        companyId = create.getCompanyId(cursor, company)
+        companyId = api.getCompanyId(cursor, company)
     return name, _type, release, federated, companyId
 
 
@@ -42,7 +42,7 @@ def create_product(cursor, db, name, _type, release, federated, companyId):
 
 
 def main():
-    db, cursor, parser = create.connect()
+    db, cursor, parser = api.connect()
     parser.add_argument("-n", "--n", type=str, action="store",
                         required=True, help="Product Name")
     parser.add_argument("-t", "--product-type", type=int, action="store",

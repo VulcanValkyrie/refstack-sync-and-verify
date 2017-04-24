@@ -2,7 +2,7 @@
 import pymysql
 import argparse
 import sys
-import create
+import api
 
 
 def process_flags(cursor, results):
@@ -25,7 +25,7 @@ def process_flags(cursor, results):
         print("No viable result ID provided. Exiting Process")
         sys.exit()
     else:
-        if not create.linkChk("https://refstack.openstack.org/api/v1/results/" + results.result - id):
+        if not api.linkChk("https://refstack.openstack.org/api/v1/results/" + results.result - id):
             print("This is not a valid result, and, as such, cannot be used for licensing purposes. Exiting process.")
             sys.exit()
         elif not dupChk("result", "id", results.result - id, cursor):
@@ -49,7 +49,7 @@ def create_license(cursor, db, _id, licenseLink, resultId, _type, _date):
 
 
 def main():
-    db, cursor, parser = create.connect()
+    db, cursor, parser = api.connect()
     parser.add_argument("-l", "--license-link", type=str,
                         action="store", required=True, help="License link")
     parser.add_argument("-t", "--type", type=str,
