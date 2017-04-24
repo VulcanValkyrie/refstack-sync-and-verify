@@ -9,10 +9,10 @@ def create_company(cursor, db, company_name):
     if not dupChk("company", "name", company_name):
         query = "INSERT INTO company(name) VALUES('%s')" % (company_name)
         cursor.execute(query)
-        db.commit()
     else:
         print("The company " + company_name +
               " already exists within the database.")
+    db.commit()
 
 
 def process_flage(results):
@@ -20,7 +20,7 @@ def process_flage(results):
         print("No valid contact name provided. Exiting process.")
         sys.exit()
     else:
-        name - results.name
+        name = results.name
     return name
 
 
