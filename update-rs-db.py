@@ -1,13 +1,56 @@
-#!/usr/bin/python3
-
+#!/usr/bin/python3.5
 import urllib.request
 import urllib.error
-import pymysql
+import sys
+import subprocess
 import requests
 import argparse
 
 
-def linksChk(link):
+def process_flags(result):
+    if result.filename is None or not result.filename:
+        infile = "toadd.csv"
+    else:
+        infile = result.filename
+    if result.server is None or not result.server:
+        server = "refstack.openstack.org"
+    else:
+        server = result.server
+    if result.token is None or not result.token or result.token is " ":
+        print("cannot authenticate without a token.")
+        sys.exit()
+    else:
+        token = result.token
+    return infile, server, token
+
+
+def convertLink(server, testId):
+    if testId is " " or server is " ":
+        return None
+    apiLink = "https://" + server + "/api/v1/results/" + str(testId)
+    return apiLink
+
+
+def getData(entry):
+    if entry[9] is not "" and entry[9] is not " ":
+        refstackLink = entry[9]
+        testId = refstackLink.split("/")[-1]
+    else:
+        refstackLink = None
+        testId = None
+    if entry[4] is not "" and entry[4] is not " ":
+        guideline = entry[4]
+    else:
+        guideline = None
+    if entry[5] is not "" and entry[5] is not " ":
+        target = entry[5]
+    else:
+        target = None
+    return testId, guideline, target
+
+
+def linkChk(link):
+    print("checking: " + link)
     if link is None or not link:
         return False
     try:
@@ -20,89 +63,12 @@ def linksChk(link):
         return False
 
 
-def fixLink(link):
-    links = []
-    newurls = []
-    if " " in link or not link or link == '':
-        return None
-    links = link.replace("\n", " ").replace("\r", " ").split(" ")
-    for x in links:
-        try:
-            baseDomain = x.split('/')[2]
-            testId = x.split('/')[-1]
-            newurl = "https://" + str(baseDomain) + \
-                "/api/v1/results/" + str(testId)
-            newurls.append(newurl)
-        except Exception:
-            continue
-    return newurls
-
-
-def linkInDb(link):
-    testId = link.split('/')[-1]
-    matches = requests.get(
-        'https://refstack.openstack.org/v1/results/' + testId)
-    if matches == '<Response [404]>':
-        print("no match found in db for result id " + testId)
-        return False
-    return True
-
-
-def getTestId(link):
-    testId = link.split('/')[-1]
-    return testId
-
-
-def processLink(line, server):
-    if not line[0]:  # or not line[1]:
-        return False, None
-    links = []
-    update = False
-    refstack_link = line[9]
-    apiLinks = fixLink(refstack_link)
-    if apiLinks is None:
-        print("No links found for the cloud associated with the company " +
-              line[0] + " on the provided spreadsheet.")
-        return False, None
-    for link in apiLinks:
-        resultsStatus = linksChk(link)
-        if not resultsStatus:
-            #print("Result is broken or does not exist")
-            update = False
-        linkMatch = linkInDb(link)
-        if not linkMatch:
-            #print("there is no such result in your db")
-            update = False
-        testId = getTestId(link)
-        if testId is None:
-            update = False
-        #print("updating shared")
-        resp = requests.post(
-            "http://" + server + '/v1/results/' + testId + '/meta/shared', data='true')
-        guideline = line[4]
-        if guideline and guideline != "" and guideline != " ":
-            #print("updating guideline")
-            resp = requests.post(
-                "http://" + server + '/v1/results/' + testId + '/meta/guideline', data=guideline)
-        targetProgram = line[5]
-        if targetProgram and targetProgram != "" and targetProgram != " ":
-            #print("updating target program")
-            resp = requests.post(
-                "http://" + server + '/v1/results/' + testId + '/meta/target', data=targetProgram)
-        if testId is None or not update or update != True:
-            update = False
-        else:
-            return True, testId
-    if update == False:
-        print("There is no link associated with the company " +
-              line[0] + " in your database.")
-    return update, testId
-
-
-def splitLine(line):
-    entry = []
-    entry = line.split(",")
-    return entry
+def updateResult(apiLink, testId, server, target, guideline):
+    resp = requests.post(apiLink + '/meta/shared', data='true')
+    resp = requests.post(apiLink + '/meta/guideline', data=guideline)
+    resp = requests.post(apiLink + '/meta/target', data=target)
+    print("test result updated. Verifying.\n")
+    resp = requests.put(apiLink, data={'verification_status': 1})
 
 
 def main():
@@ -110,30 +76,36 @@ def main():
         "Update the internal RefStack db using a csv file")
     parser.add_argument("--file", "-f", metavar='f', type=str,
                         action="store", dest="filename", default="toadd.csv")
-    parser.add_argument("--server", "-s", metavar='s', type=str, action="store",
-                        dest="server", default="https://refstack.openstack.org/v1/results/")
+    parser.add_argument("--server", "-s", metavar='s',
+                        type=str, action="store", dest="server")
+    parser.add_argument("--token", "-t", metavar="t", type=str,
+                        action="store", dest="token", required=True)
     result = parser.parse_args()
-    if result.filename is None or not result.filename:
-        infile = "toadd.csv"
-    else:
-        infile = result.filename
-    if result.server is None or not result.server:
-        server = "https://refstack.openstack.org"
-    else:
-        server = result.server
+    infile, server, token = process_flags(result)
     with open(infile) as f:
+        try:
+            authcmd = " curl -k --header \"Authorization: Bearer \"" + \
+                token + "\"\" " + server + "/v1/profile"
+            authcmd = authcmd.split()
+            response = subprocess.Popen(
+                authcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except Exception as err:
+            print("cannot authenticate to RefStack API: " + str(err))
+            sys.exit()
         for line in f:
             entry = []
-            entry = splitLine(line)
-            verify, testId = processLink(entry, server)
-            if verify:
-                print("marking the product data associated with the company " +
-                      entry[0] + " as verified")
-                resp = requests.put(
-                    "http://" + server + '/v1/results/' + testId, data={'verification_status': 1})
+            entry = line.split(",")
+            testId, guideline, target = getData(entry)
+            if testId is None or guideline is None or target is None:
+                print("Cannot update & verify test result due to missing data.\n")
             else:
-                print("the entry associated with the company " +
-                      entry[0] + " cannot be verified.\n")
+                apiLink = convertLink(server, testId)
+                if linkChk(apiLink):
+                    print("link is valid. Updating.")
+                    updateResult(apiLink, testId, server, target, guideline)
+                else:
+                    print("the test result " + testId +
+                          " cannot be verified due to a broken link.\n")
 
 
 main()
