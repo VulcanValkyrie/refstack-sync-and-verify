@@ -1,20 +1,20 @@
-#!/usr/bin/python3.5
+#!/usr/bin/python3.5 
 import argparse
 import pymysql
 import sys
 import api
 
 
-def process_flags(results):
+def process_flags(cursor, results):
     if results.name is None or results.name is " ":
         print("No valid product name provided. Exiting process.")
         sys.exit()
     else:
         name = results.name
-    if not results.product - type or results.product - type is None or results.product - type is " ":
-        _type = "NULL"
+    if not results.product_type or results.product_type is None or results.product_type is " ":
+        _type = -1
     else:
-        _type = results.product - type
+        _type = results.product_type
     if not results.release or results.release is None or results.release is " ":
         release = ""
     else:
@@ -27,14 +27,14 @@ def process_flags(results):
         print("No valid company name provided. Exiting process")
         sys.exit()
     else:
-        companyId = api.getCompanyId(cursor, company)
+        companyId = api.getCompanyId(cursor, results.company)
     return name, _type, release, federated, companyId
 
 
 def create_product(cursor, db, name, _type, release, federated, companyId):
-    if not dupChk("product", "name", name):
-        query = "INSERT INTO product(name, _type, _release, federated, company_id, _updated) VALUE('%s', '%d', '%s', '%d', '%d', '%d')" % (
-            product_name, int(_type), _release, int(federated), int(company_id), int(update))
+    if not api.dupChk("product", "name", name, cursor):
+        query = "INSERT INTO product(name, _type, _release, federated, company_id) VALUE('%s', '%d', '%s', '%d', '%d')" % (
+            name, int(_type), release, int(federated), int(companyId))
         cursor.execute(query)
         db.commit()
     else:
@@ -43,19 +43,19 @@ def create_product(cursor, db, name, _type, release, federated, companyId):
 
 def main():
     db, cursor, parser = api.connect()
-    parser.add_argument("-n", "--n", type=str, action="store",
+    parser.add_argument("-n", "--name", type=str, action="store",
                         required=True, help="Product Name")
-    parser.add_argument("-t", "--product-type", type=int, action="store",
+    parser.add_argument("-t", "--product_type", type=int, action="store",
                         help="Product Type: 0 = distribution, 1 = public, 2 = private")
     parser.add_argument("-r", "--release", type=str,
                         action="store", help="Product Name")
     parser.add_argument("-f", "--federated", type=int,
-                        action="store", help="Federated Identity")
+                       action="store", help="Federated Identity")
     parser.add_argument("-c", "--company", type=str, action="store",
-                        required=True, help="Associated Company")
+                       required=True, help="Associated Company")
     results = parser.parse_args()
-    name, _type, release, federated, companyId = process_flags(results)
+    name, _type, release, federated, companyId = process_flags(cursor, results)
     create_product(cursor, db, name, _type, release, federated, companyId)
-
+    db.close()
 
 main()

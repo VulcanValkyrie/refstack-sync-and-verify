@@ -3,27 +3,24 @@ import pymysql
 import argparse
 import urllib.error
 import urllib.request
-
+import sys
 
 def dupChk(table, keytype, keyval, cursor):
-    query = "SELECT COUNT(*) FROM %s WHERE %s = '%s'" % (table,
-                                                         keytype, keyval)
+    query = "SELECT EXISTS(SELECT 1 FROM %s WHERE %s = '%s')"%(table, keytype, keyval)              
     cursor.execute(query)
-    rowcount = cursor.rowcount
+    rowcount = cursor.fetchall()
+    rowcount = rowcount[0][0]
     if rowcount != 0:
-        return True
+        return True                                                                         
     else:
-        return False
-
+        return False                                                                        
 
 def process_flags(results):
-    if results.table is None:
-        table = "N/A"
+    if results.table is None:                                                               
+        table = "N/A"                                                                       
     else:
         table = results.table
-    return table
-
-
+    return table                                                           
 def linkChk(link):
     if link is None or not link:
         return False
@@ -38,8 +35,12 @@ def linkChk(link):
 
 
 def connect():
-    db = pymysql.connect("<MySQL db server>", "<username>",
-                         "<password>", "vendorData")
+    try:
+        db = pymysql.connect("<MySQL db server>", "<user>", "<password>", "vendorData")
+    except Exception as err:
+        print("could not connect to database.")
+        print(err)
+        sys.exit()
     cursor = db.cursor()
     parser = argparse.ArgumentParser()
     return db, cursor, parser
@@ -49,23 +50,27 @@ def getCompanyId(cursor, company):
     if company is None or company is " ":
         sys.exit()
     query = "SELECT id FROM company where name = '%s'" % (company)
-    companyId = cursor.execute(query)
+    cursor.execute(query)
+    companyId = cursor.fetchone()
     if companyId is None or companyId is 0 or companyId is "":
         print("No matching organization found. Exiting.")
         sys.exit()
     else:
-        companyId = companyId[0]
+        companyId = companyId
     return companyId
-
-
+    
 def getProductId(cursor, name):
     if name is None or name is " ":
         sys.exit()
-    query = "SELECT id FROM company where name = '%s'" % (name)
-    productId = cursor.execute(query)
+    query = "SELECT id FROM product where name = '%s'" % (name)
+    cursor.execute(query)
+    productId = cursor.fetchone()
     if productId is None or productId is 0:
         print("No matching product Id found. Exiting.")
         sys.exit()
     else:
         productId = productId[0]
     return productId
+ 
+
+

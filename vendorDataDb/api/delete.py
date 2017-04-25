@@ -10,17 +10,15 @@ def delete(table, keytype, keyval, cursor, db):
         results = cursor.fetchall()
         print("Results found: ")
         print(results)
-        confirm = input(
-            "are you sure you want to remove this record from the db? [y/N]")
+        confirm = input("are you sure you want to remove this record from the db? [y/N]")
         if confirm is 'y' or confirm is 'Y':
-            query = "DELETE FROM %s WHERE %s = '%s'" % (table, keytype, keyval)
-            cursor.execute(query)
-            print("Entry deleted.")
-            db.commit()
+           query = "DELETE FROM %s WHERE %s = '%s'" % (table, keytype, keyval)
+           cursor.execute(query)
+           print("Entry deleted.")
+           db.commit()
 
-    else:
+    else: 
         print("No such entry exists.")
-
 
 def process_flags(results):
     if results.table is None:
@@ -40,16 +38,11 @@ def process_flags(results):
 
 def main():
     db, cursor, parser = api.connect()
-    parser.add_argument("-t", "--table", type=str, action="store",
-                        required=True, help="table to search for the desired data")
-    parser.add_argument("-kt", "--keytype", type=str, action="store",
-                        required=True, help="attribute to search by")
-    parser.add_argument("-kv", "--keyvalue", type=str,
-                        action="store", required=True, help="attribute value")
+    parser.add_argument("-t", "--table", type=str, action="store", required=True, help="table to search for the desired data")
+    parser.add_argument("-kt", "--keytype", type=str, action="store", required=True, help="attribute to search by")
+    parser.add_argument("-kv", "--keyvalue", type=str, action="store", required=True, help="attribute value") 
     results = parser.parse_args()
     table, keytype, keyval = process_flags(results)
     delete(table, keytype, keyval, cursor, db)
     db.close()
-
-
 main()
