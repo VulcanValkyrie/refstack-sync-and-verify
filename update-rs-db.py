@@ -1,6 +1,7 @@
 #!/usr/bin/python3.5
 import urllib.request
 import urllib.error
+import time
 import sys
 import subprocess
 import requests
@@ -50,7 +51,7 @@ def getData(entry):
 
 
 def linkChk(link):
-    print("checking: " + link)
+    print("checking result with a test ID of: " + link.split("/")[-1])
     if link is None or not link:
         return False
     try:
@@ -89,9 +90,15 @@ def main():
             authcmd = authcmd.split()
             response = subprocess.Popen(
                 authcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = str(response.communicate())
+            if "Found" not in result or "404" in result:
+                print("Authentication Failure. Exiting.")
+                sys.exit()
         except Exception as err:
             print("cannot authenticate to RefStack API: " + str(err))
             sys.exit()
+        time.sleep(2)
+        print("\n")
         for line in f:
             entry = []
             entry = line.split(",")
