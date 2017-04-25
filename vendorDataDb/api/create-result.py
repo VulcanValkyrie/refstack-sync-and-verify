@@ -46,18 +46,19 @@ def create_result(cursor, db, _id, refstack, productId, tikId, guideline):
 
 def main():
     db, cursor, parser = api.connect()
-    parser.add_argument("-r", "--resultLink", type = str,
-                        action = "store", required = True, help = "Refstack result link")
-    parser.add_argument("-p", "--productName", type = str, action = "store",
-                        required = True, help = "Product associated with this set of test results")
-    parser.add_argument("-t", "--ticketLink", type = str,
-                        action = "store", help = "Associated ticket link")
-    parser.add_argument("-g", "--guideline", type = str,
-                        action = "store", help = "Associated Defcore guideline")
-    results=parser.parse_args()
-    _id, refstack, productId, tikId, guideline=process_flags(cursor, results)
+    parser.add_argument("-r", "--resultLink", type=str,
+                        action="store", required=True, help="Refstack result link")
+    parser.add_argument("-p", "--productName", type=str, action="store",
+                        required=True, help="Product associated with this set of test results")
+    parser.add_argument("-t", "--ticketLink", type=str,
+                        action="store", help="Associated ticket link")
+    parser.add_argument("-g", "--guideline", type=str,
+                        action="store", help="Associated Defcore guideline")
+    results = parser.parse_args()
+    _id, refstack, productId, tikId, guideline = process_flags(cursor, results)
     create_result(cursor, db, _id, refstack,
                   productId, tikId, guideline)
     db.close()
+
 
 main()

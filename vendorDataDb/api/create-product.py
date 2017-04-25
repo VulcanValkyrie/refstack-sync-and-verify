@@ -1,4 +1,4 @@
-#!/usr/bin/python3.5 
+#!/usr/bin/python3.5
 import argparse
 import pymysql
 import sys
@@ -50,12 +50,13 @@ def main():
     parser.add_argument("-r", "--release", type=str,
                         action="store", help="Product Name")
     parser.add_argument("-f", "--federated", type=int,
-                       action="store", help="Federated Identity")
+                        action="store", help="Federated Identity")
     parser.add_argument("-c", "--company", type=str, action="store",
-                       required=True, help="Associated Company")
+                        required=True, help="Associated Company")
     results = parser.parse_args()
     name, _type, release, federated, companyId = process_flags(cursor, results)
     create_product(cursor, db, name, _type, release, federated, companyId)
     db.close()
+
 
 main()

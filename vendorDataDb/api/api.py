@@ -5,22 +5,27 @@ import urllib.error
 import urllib.request
 import sys
 
+
 def dupChk(table, keytype, keyval, cursor):
-    query = "SELECT EXISTS(SELECT 1 FROM %s WHERE %s = '%s')"%(table, keytype, keyval)              
+    query = "SELECT EXISTS(SELECT 1 FROM %s WHERE %s = '%s')" % (
+        table, keytype, keyval)
     cursor.execute(query)
     rowcount = cursor.fetchall()
     rowcount = rowcount[0][0]
     if rowcount != 0:
-        return True                                                                         
+        return True
     else:
-        return False                                                                        
+        return False
+
 
 def process_flags(results):
-    if results.table is None:                                                               
-        table = "N/A"                                                                       
+    if results.table is None:
+        table = "N/A"
     else:
         table = results.table
-    return table                                                           
+    return table
+
+
 def linkChk(link):
     if link is None or not link:
         return False
@@ -36,7 +41,8 @@ def linkChk(link):
 
 def connect():
     try:
-        db = pymysql.connect("<MySQL db server>", "<user>", "<password>", "vendorData")
+        db = pymysql.connect("<MySQL db server>", "<user>",
+                             "<password>", "vendorData")
     except Exception as err:
         print("could not connect to database.")
         print(err)
@@ -58,7 +64,8 @@ def getCompanyId(cursor, company):
     else:
         companyId = companyId
     return companyId
-    
+
+
 def getProductId(cursor, name):
     if name is None or name is " ":
         sys.exit()
@@ -71,6 +78,3 @@ def getProductId(cursor, name):
     else:
         productId = productId[0]
     return productId
- 
-
-

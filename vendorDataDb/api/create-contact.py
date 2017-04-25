@@ -4,13 +4,16 @@ import pymysql
 import sys
 import api
 
+
 def create_contact(cursor, db, name, email, companyId):
     if not api.dupChk("contact", "name", name, cursor):
-        query = "INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%s')" % (name, email, companyId)
+        query = "INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%s')" % (
+            name, email, companyId)
         cursor.execute(query)
     else:
         print(name + "already exists within the database.")
-    db.commit() 
+    db.commit()
+
 
 def process_flags(results, cursor):
     if results.name is None or results.name is " ":
@@ -30,12 +33,16 @@ def process_flags(results, cursor):
 
 def main():
     db, cursor, parser = api.connect()
-    parser.add_argument("-n", "--name", type=str, action="store", required=True, help="Contact Name")
-    parser.add_argument("-m", "--mail", type=str, action="store", required=True, help="Contact Email")
-    parser.add_argument("-c", "--company", type=str, action="store", required=True, help="Affiliated Company Name")
+    parser.add_argument("-n", "--name", type=str,
+                        action="store", required=True, help="Contact Name")
+    parser.add_argument("-m", "--mail", type=str,
+                        action="store", required=True, help="Contact Email")
+    parser.add_argument("-c", "--company", type=str, action="store",
+                        required=True, help="Affiliated Company Name")
     results = parser.parse_args()
     name, email, companyId = process_flags(results, cursor)
     create_contact(cursor, db, name, email, companyId)
     db.close()
+
 
 main()
