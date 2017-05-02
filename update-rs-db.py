@@ -1,35 +1,9 @@
-#!/usr/bin/python3.5
-import urllib.request
-import urllib.error
+#!/usr/bin/python
 import time
 import sys
 import subprocess
 import requests
 import argparse
-
-
-def process_flags(result):
-    if result.filename is None or not result.filename:
-        infile = "toadd.csv"
-    else:
-        infile = result.filename
-    if result.server is None or not result.server:
-        server = "refstack.openstack.org"
-    else:
-        server = result.server
-    if result.token is None or not result.token or result.token is " ":
-        print("cannot authenticate without a token.")
-        sys.exit()
-    else:
-        token = result.token
-    return infile, server, token
-
-
-def convertLink(server, testId):
-    if testId is " " or server is " ":
-        return None
-    apiLink = "https://" + server + "/api/v1/results/" + str(testId)
-    return apiLink
 
 
 def getData(entry):
@@ -50,69 +24,68 @@ def getData(entry):
     return testId, guideline, target
 
 
-def linkChk(link):
+def linkChk(link, token):
     print("checking result with a test ID of: " + link.split("/")[-1])
     if link is None or not link:
         return False
     try:
         if " " in link:
             return False
-        response = urllib.request.urlopen(link)
-        if response.geturl() == link:
+        response = requests.get(
+            link, headers={'Authorization': 'Bearer' + token})
+        if response.status_code is 200:
             return True
-    except urllib.error.HTTPError as err:
+        else:
+            return False
+    except request.exceptions as err:
+        print(err)
         return False
 
 
-def updateResult(apiLink, testId, server, target, guideline):
-    resp = requests.post(apiLink + '/meta/shared', data='true')
-    resp = requests.post(apiLink + '/meta/guideline', data=guideline)
-    resp = requests.post(apiLink + '/meta/target', data=target)
+def updateResult(apiLink, testId, server, target, guideline, token):
+    resp = requests.post(apiLink + '/meta/shared', headers={
+                         'Authorization': 'Bearer' + token}, data='true')
+    resp = requests.post(apiLink + '/meta/guideline', headers={
+                         'Authorization': 'Bearer' + token}, data=guideline)
+    resp = requests.post(apiLink + '/meta/target', headers={
+                         'Authorization': 'Bearer' + token}, data=target)
     print("test result updated. Verifying.\n")
-    resp = requests.put(apiLink, data={'verification_status': 1})
+    resp = requests.put(apiLink, headers={
+                        'Authorization': 'Bearer' + token}, data={'verification_status': 1})
 
 
 def main():
     parser = argparse.ArgumentParser(
         "Update the internal RefStack db using a csv file")
-    parser.add_argument("--file", "-f", metavar='f', type=str,
-                        action="store", dest="filename", default="toadd.csv")
-    parser.add_argument("--server", "-s", metavar='s',
-                        type=str, action="store", dest="server")
+    parser.add_argument("--file", "-f", metavar='f', type=str, action="store",
+                        required=True, help="csv source for the data to use in updates")
+    parser.add_argument(
+        "--endpoint", "-e", metavar='s', type=str, action="store",
+                        required=True, help="the base URL of the endpoint. ex: http://examplerefstack.com/v1")
     parser.add_argument("--token", "-t", metavar="t", type=str,
-                        action="store", dest="token", required=True)
+                        action="store", required=True, help="API auth token")
     result = parser.parse_args()
-    infile, server, token = process_flags(result)
+    infile = result.file
+    endpoint = result.endpoint
+    token = result.token
     with open(infile) as f:
-        try:
-            authcmd = " curl -k --header \"Authorization: Bearer \"" + \
-                token + "\"\" " + server + "/v1/profile"
-            authcmd = authcmd.split()
-            response = subprocess.Popen(
-                authcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            result = str(response.communicate())
-            if "Found" not in result or "404" in result:
-                print("Authentication Failure. Exiting.")
-                sys.exit()
-        except Exception as err:
-            print("cannot authenticate to RefStack API: " + str(err))
-            sys.exit()
-        time.sleep(2)
-        print("\n")
         for line in f:
             entry = []
             entry = line.split(",")
             testId, guideline, target = getData(entry)
             if testId is None or guideline is None or target is None:
-                print("Cannot update & verify test result due to missing data.\n")
+                print(
+                    "Cannot update & verify test result due to missing data.\n")
             else:
-                apiLink = convertLink(server, testId)
-                if linkChk(apiLink):
-                    print("link is valid. Updating.")
-                    updateResult(apiLink, testId, server, target, guideline)
+                apiLink = os.join(endpoint, '/results/' + testId)
+                if linkChk(apiLink, token):
+                    print(
+                        "Result link is valid. Updating the result with the ID " + testId + "\n")
+                    updateResult(
+                        apiLink, testId, server, target, guideline, token)
                 else:
                     print("the test result " + testId +
-                          " cannot be verified due to a broken link.\n")
+                          " cannot be verified due to a broken result link.\n")
 
 
 main()
