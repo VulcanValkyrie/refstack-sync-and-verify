@@ -126,8 +126,9 @@ def dupChk(table, keytype, keyval, cursor):
         return False
 
 
-def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, result_links,
-              federated, _type, ticket_link, lic_date, upd_status, lic_link, cursor, db):
+def pushEntry(company_name, prod_name, guideline, reported_rel,
+              passed_rel, result_links, federated, _type, ticket_link,
+              lic_date, upd_status, lic_link, cursor, db):
     federated = fedChk(federated)
     upd_status = updateLicenseChk(upd_status)
     if not dupChk("company", "name", company_name, cursor):
@@ -146,8 +147,11 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, resu
     else:
         newtype = 0
     if not dupChk("product", "name", prod_name, cursor):
-        cursor.execute("INSERT INTO product(name,  _release, federated, company_id, _update, _type) VALUES('%s', '%s', '%d','%d', '%d', '%d')"
-                       % (prod_name, reported_rel, federated, company_id, upd_status, newtype))
+        cursor.execute("INSERT INTO product(name,  _release, federated," +
+                       "company_id, _update, _type)" +
+                       "VALUES('%s', '%s', '%d','%d', '%d', '%d')"
+                       % (prod_name, reported_rel, federated, company_id,
+                          upd_status, newtype))
     db.commit()
     product_id = getProductId(cursor, prod_name)
     if product_id is None:
@@ -160,8 +164,9 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, resu
                 _id = link.split("/")[-1]
             else:
                 _id = "N/A"
-            cursor.execute("INSERT INTO ticket(id, tik_link, product_id) VALUES('%s', '%s','%s')" % (
-                _id, link, product_id))
+            cursor.execute("INSERT INTO ticket(id, tik_link, product_id) " +
+                           "VALUES('%s', '%s','%s')"
+                           % (_id, link, product_id))
     db.commit()
     if lic_link is not None and lic_link:
         if lic_date is None:
@@ -169,20 +174,23 @@ def pushEntry(company_name, prod_name, guideline, reported_rel, passed_rel, resu
         for link in result_links:
             if link:
                 result_id = link.split("/")[-1]
-            cursor.execute("INSERT INTO license(result_id, _link, _type, _date) VALUES('%s', '%s', '%d', '%s')" %
+            cursor.execute("INSERT INTO license(result_id, _link, _type, " +
+                           "_date) VALUES('%s', '%s', '%d', '%s')" %
                            (result_id, lic_link, newtype, lic_date))
     db.commit()
 
 
 def pushContacts(names, emails, company_id):
     for x, y in zip(names, emails):
-        if not(dupChk("contact", "email", str("<" + y + ">"), cursor)) and "no name on record" not in x and x != '' and x != " ":
-            cursor.execute("INSERT INTO contact(name, email, company_id) VALUES('%s', '%s', '%d')" % (
-                x, y, company_id))
+        if not(dupChk("contact", "email", str("<" + y + ">"), cursor))\
+                and "no name on record" not in x and x != '' and x != " ":
+            cursor.execute("INSERT INTO contact(name, email, company_id) " +
+                           "VALUES('%s', '%s', '%d')" % (x, y, company_id))
 
 
-def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
-                federated, refstack_link, ticket_link, lic_date, lic_link, cursor, db):
+def updateEntry(company_name, prod_name, guideline, reported_rel,
+                passed_rel, federated, refstack_link, ticket_link,
+                lic_date, lic_link, cursor, db):
     product_id = getProductId(cursor, prod_name)
     company_id = getCompanyId(cursor, company_name)
     # guideline table updates
@@ -192,8 +200,9 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     if to_chk is not None:
         to_chk = to_chk[0]
         if guideline not in to_chk:
-            cursor.execute("UPDATE result SET guideline = '%s' WHERE _product_id_ = '%s' AND refstack = '%s'" % (
-                guideline, product_id, refstack_link))
+            cursor.execute("UPDATE result SET guideline = '%s' WHERE " +
+                           "_product_id_ = '%s' AND refstack = '%s'" %
+                           (guideline, product_id, refstack_link))
     # now we update our contact table
     cursor.execute(
         "SELECT name FROM contact WHERE company_id ='%s'" % (company_id))
@@ -201,23 +210,25 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     if to_chk is not None and to_chk[0] is not None:
         to_chk = to_chk[0]
     # now update the product table
-    cursor.execute("SELECT _release FROM product WHERE company_id ='%s' AND name = '%s'" % (
-        company_id, prod_name))
+    cursor.execute("SELECT _release FROM product WHERE company_id ='%s' " +
+                   "AND name = '%s'" % (company_id, prod_name))
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
         if reported_rel not in to_chk:
-            cursor.execute("UPDATE product SET _release ='%s' WHERE company_id = '%s' and name = '%s'" % (
-                reported_rel, company_id, prod_name))
-    cursor.execute("SELECT federated FROM product WHERE company_id ='%s' AND name = '%s'" % (
-        company_id, prod_name))
+            cursor.execute("UPDATE product SET _release ='%s' WHERE " +
+                           "company_id = '%s' and name = '%s'" %
+                           (reported_rel, company_id, prod_name))
+    cursor.execute("SELECT federated FROM product WHERE company_id ='%s' " +
+                   "AND name = '%s'" % (company_id, prod_name))
     to_chk = cursor.fetchone()
     if to_chk is not None:
         to_chk = to_chk[0]
     federated = fedChk(federated)
     if to_chk != federated:
-        cursor.execute("UPDATE product SET federated ='%s' WHERE company_id = '%s' and name = '%s'" % (
-            federated, company_id, prod_name))
+        cursor.execute("UPDATE product SET federated ='%s' WHERE " +
+                       "company_id = '%s' and name = '%s'" %
+                       (federated, company_id, prod_name))
     cursor.execute(
         "SELECT id FROM result WHERE _product_id_ ='%s'" % (product_id))
     result_id = cursor.fetchone()
@@ -229,12 +240,13 @@ def updateEntry(company_name, prod_name, guideline, reported_rel, passed_rel,
     if to_chk is not None:
         to_chk = to_chk[0]
         if to_chk and lic_link not in to_chk:
-            cursor.execute("UPDATE license SET link = '%s' WHERE product_id = '%s'" % (
-                lic_link, product_id))
+            cursor.execute("UPDATE license SET link = '%s' WHERE " +
+                           "product_id = '%s'" % (lic_link, product_id))
     cursor.execute(
         "SELECT _date FROM license WHERE result_id ='%s'" % (result_id))
     to_chk = cursor.fetchone()
-    if to_chk is not None and dupChk("license", "result_id", result_id, cursor):
+    if to_chk is not None and dupChk("license", "result_id",
+                                     result_id, cursor):
         to_chk = to_chk[0]
         if lic_date not in to_chk:
             cursor.execute("UPDATE license SET link = '%s' WHERE id = '%s'" % (
@@ -279,7 +291,8 @@ def get_entry(line):
     company_name = company_name.replace("\n", " ").replace("\r", " ")
     return company_name, prod_name, _type, region, guideline, component,\
         reported_rel, passed_rel, federated, refstack_link, ticket_link,\
-        marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public
+        marketp_link, lic_date, upd_status, contact, notes, lic_link,\
+        active, public
 
 
 def pushResult(link, tik_id, guideline, product_id):
@@ -292,8 +305,10 @@ def pushResult(link, tik_id, guideline, product_id):
             _id = link.split("/")[-1]
         else:
             _id = "N/A"
-        cursor.execute("INSERT INTO result(id, refstack, tik_id, guideline, _product_id_) VALUES('%s', '%s', '%s', '%s', '%d')" % (
-            _id, link, tik_id, guideline, product_id))
+        cursor.execute("INSERT INTO result(id, refstack, tik_id, " +
+                       "guideline, _product_id_) " +
+                       "VALUES('%s', '%s', '%s', '%s', '%d')"
+                       % (_id, link, tik_id, guideline, product_id))
 
 
 def pushResults(api_links, tik_id, guideline, product_id):
@@ -328,9 +343,14 @@ def processEntry(entry, db, cursor, linect, dbStatus):
     # get data fields
     company_name, prod_name, _type, region, guideline, component,\
         reported_rel, passed_rel, federated, refstack_link, ticket_link,\
-        marketp_link, lic_date, upd_status, contact, notes, lic_link, active, public = get_entry(
+        marketp_link, lic_date, upd_status, contact, notes, lic_link,\
+        active, public = get_entry(
             entry)
-    if company_name and company_name is not "" and "DISTRIBUTIONS" not in company_name and "PRIVATE" not in prod_name and "PUBLIC" not in prod_name and "LEADS" not in company_name and "IN PROGRESS" not in prod_name and "HOSTED" not in company_name and "PUBLIC" not in company_name and "Product" not in prod_name:
+    if company_name and company_name is not "" and "DISTRIBUTIONS" \
+            not in company_name and "PRIVATE" not in prod_name and "PUBLIC" \
+            not in prod_name and "LEADS" not in company_name and \
+            "IN PROGRESS" not in prod_name and "HOSTED" not in company_name \
+            and "PUBLIC" not in company_name and "Product" not in prod_name:
         api_links = []
         guidelines = []
         components = []
@@ -342,12 +362,16 @@ def processEntry(entry, db, cursor, linect, dbStatus):
         pushStatus = True
         api_links = fixLink(refstack_link)
         if not linksChk(api_links, linect):
-            print("The link associated with the product " + prod_name + " and the guideline " + guideline +
-                  " is broken, or does not exist. please check and update this field in the spreadsheet")
-            notes = notes + "; this link is broken or does not exist. please check and update this field."
+            print("The link associated with the product " + prod_name +
+                  " and the guideline " + guideline +
+                  " is broken, or does not exist. please check and update " +
+                  "this field in the spreadsheet")
+            notes = notes + "; this link is broken or does not exist. " +
+            "please check and update this field."
             upd_status = "yes"
             pushStatus = False
-        if not guidelines or not components or not passed_rels or not reported_rels:
+        if not guidelines or not components or not passed_rels \
+                or not reported_rels:
             if not guidelines:
                 guidelines = [' ']
             if not components:
@@ -357,20 +381,24 @@ def processEntry(entry, db, cursor, linect, dbStatus):
             if not reported_rels:
                 reported_rels = [' ']
         # else:
-        for w, x, y, z in zip(guidelines, components, passed_rels, reported_rels):
+        for w, x, y, z in zip(guidelines, components,
+                              passed_rels, reported_rels):
             # update spreadsheet
             spreadsheet.append_row([company_name, prod_name, _type, region,
                                     w, x, y, z, federated, refstack_link,
                                     ticket_link, marketp_link, lic_date,
                                     upd_status, contact, notes, lic_link,
                                     active, public])
-            if dbStatus or newChk(company_name, prod_name, cursor) and "Company" not in company_name:
-                pushEntry(company_name, prod_name, w, z, y, federated, z, _type,
-                          ticket_link, lic_date, upd_status, lic_link, cursor, db)
+            if dbStatus or newChk(company_name, prod_name, cursor)\
+                    and "Company" not in company_name:
+                pushEntry(company_name, prod_name, w, z, y, federated, z,
+                          _type, ticket_link, lic_date, upd_status, lic_link,
+                          cursor, db)
             else:
-                updateEntry(company_name, prod_name, w, z, y, federated, api_links, ticket_link,
-                            lic_date, lic_link, cursor, db)
-        if pushStatus:  # we do this later to ensure that we will have the appropriate product_id and ticket_id in the db
+                updateEntry(company_name, prod_name, w, z, y, federated,
+                            api_links, ticket_link, lic_date, lic_link,
+                            cursor, db)
+        if pushStatus:
             product_id = getProductId(cursor, prod_name)
             tik_id = getTikId(ticket_link)
             company_id = getCompanyId(cursor, company_name)
@@ -395,7 +423,8 @@ print("connecting to MySQL")
 db = pymysql.connect("<MySQL db server>", "<user>", "<password>")
 cursor = db.cursor()
 exists = cursor.execute(
-    "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vendorData'")
+    "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA " +
+    "WHERE SCHEMA_NAME = 'vendorData'")
 if exists == 0:
     print("db 'vendorData' does not exist. creating now")
     with open("vendorData.sql") as r:
